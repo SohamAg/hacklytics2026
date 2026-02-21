@@ -47,10 +47,35 @@
       letter-spacing: -0.02em;
       color: #1c1c1c;
     }
+    .top-bar-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
     .parts-wrap {
       display: flex;
       align-items: center;
       gap: 0.5rem;
+    }
+    .heartbeat-btn {
+      font-family: inherit;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: #1c1c1c;
+      background: #fff;
+      border: 1px solid rgba(0,0,0,0.1);
+      border-radius: 8px;
+      padding: 0.5rem 0.75rem;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .heartbeat-btn:hover { border-color: rgba(0,0,0,0.2); }
+    .heartbeat-btn:focus { border-color: #2d7aff; box-shadow: 0 0 0 2px rgba(45,122,255,0.15); }
+    .heartbeat-btn.active {
+      background: #1c1c1c;
+      color: #fff;
+      border-color: #1c1c1c;
     }
     .parts-wrap span {
       font-size: 0.8125rem;
@@ -94,11 +119,14 @@
   <div class="app">
     <header class="top-bar">
       <h1>Heart Viewer</h1>
-      <div class="parts-wrap">
-        <span>Highlight</span>
-        <select id="parts-select" aria-label="Select part to highlight">
-          <option value="">—</option>
-        </select>
+      <div class="top-bar-actions">
+        <button type="button" class="heartbeat-btn" id="heartbeat-btn" aria-pressed="false">Start heartbeat</button>
+        <div class="parts-wrap">
+          <span>Highlight</span>
+          <select id="parts-select" aria-label="Select part to highlight">
+            <option value="">—</option>
+          </select>
+        </div>
       </div>
     </header>
     <div id="canvas-container"></div>

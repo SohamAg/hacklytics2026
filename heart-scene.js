@@ -35,8 +35,85 @@ scene.add(fill);
 
 let pickableMeshes = [];
 let selectedMeshes = [];
+let heartGroup = null;
+let heartBaseScale = 1;
+let heartbeatEnabled = false;
+let pulseRestored = true;
 const highlightColor = new THREE.Color(0x7eb8ff);
 const highlightIntensity = 0.75;
+
+const BEAT_PERIOD = 0.9;
+const BEAT_AMPLITUDE = 0.05;
+
+function getHeartbeatMultiplier() {
+  const t = (performance.now() / 1000) % BEAT_PERIOD;
+  const u = t / BEAT_PERIOD;
+  const lub = u < 0.2 ? Math.sin((u / 0.2) * Math.PI) : 0;
+  const dub = u >= 0.28 && u < 0.48 ? Math.sin(((u - 0.28) / 0.2) * Math.PI) * 0.75 : 0;
+  const pulse = lub + dub;
+  return 1 + BEAT_AMPLITUDE * pulse;
+}
+
+function smoothstep(edge0, edge1, x) {
+  const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
+
+function setupVertexPulse(mesh) {
+  const geo = mesh.geometry;
+  if (!geo?.attributes?.position) return;
+  mesh.geometry = geo.clone();
+  const pos = mesh.geometry.attributes.position;
+  const count = pos.count;
+  const rest = new Float32Array(pos.array.length);
+  rest.set(pos.array);
+  const cx = new THREE.Vector3();
+  for (let i = 0; i < count; i++) {
+    cx.x += rest[i * 3];
+    cx.y += rest[i * 3 + 1];
+    cx.z += rest[i * 3 + 2];
+  }
+  cx.divideScalar(count);
+  let maxDist = 0;
+  const dists = new Float32Array(count);
+  for (let i = 0; i < count; i++) {
+    const dx = rest[i * 3] - cx.x, dy = rest[i * 3 + 1] - cx.y, dz = rest[i * 3 + 2] - cx.z;
+    const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    dists[i] = d;
+    if (d > maxDist) maxDist = d;
+  }
+  const innerR = 0.25 * maxDist;
+  const outerR = 0.65 * maxDist;
+  const weights = new Float32Array(count);
+  for (let i = 0; i < count; i++)
+    weights[i] = 1 - smoothstep(innerR, outerR, dists[i]);
+  mesh.userData.pulseData = { rest, weights, cx, count };
+}
+
+function applyVertexPulse(mesh, mult) {
+  const data = mesh.userData.pulseData;
+  if (!data) return;
+  const { rest, weights, cx, count } = data;
+  const pos = mesh.geometry.attributes.position;
+  const arr = pos.array;
+  for (let i = 0; i < count; i++) {
+    const w = weights[i];
+    const s = 1 + (mult - 1) * w;
+    const j = i * 3;
+    arr[j] = cx.x + (rest[j] - cx.x) * s;
+    arr[j + 1] = cx.y + (rest[j + 1] - cx.y) * s;
+    arr[j + 2] = cx.z + (rest[j + 2] - cx.z) * s;
+  }
+  pos.needsUpdate = true;
+}
+
+function restoreVertexPulse(mesh) {
+  const data = mesh.userData.pulseData;
+  if (!data) return;
+  const pos = mesh.geometry.attributes.position;
+  pos.array.set(data.rest);
+  pos.needsUpdate = true;
+}
 
 function collectMeshes(obj, list) {
   if (obj.isMesh) {
@@ -117,10 +194,24 @@ loader.load(
     const maxDim = Math.max(size.x, size.y, size.z);
     const scale = 2.5 / maxDim;
     group.position.sub(center);
+    heartGroup = group;
+    heartBaseScale = scale;
     group.scale.setScalar(scale);
 
     pickableMeshes = [];
     collectMeshes(group, pickableMeshes);
+    pickableMeshes.forEach(setupVertexPulse);
+
+    const btn = document.getElementById('heartbeat-btn');
+    if (btn) {
+      btn.addEventListener('click', () => {
+        heartbeatEnabled = !heartbeatEnabled;
+        pulseRestored = false;
+        btn.textContent = heartbeatEnabled ? 'Stop heartbeat' : 'Start heartbeat';
+        btn.classList.toggle('active', heartbeatEnabled);
+        btn.setAttribute('aria-pressed', heartbeatEnabled);
+      });
+    }
 
     const select = document.getElementById('parts-select');
     if (select) {
@@ -148,6 +239,14 @@ window.addEventListener('resize', () => {
 
 function animate() {
   requestAnimationFrame(animate);
+  if (heartbeatEnabled) {
+    const mult = getHeartbeatMultiplier();
+    pickableMeshes.forEach((m) => applyVertexPulse(m, mult));
+    pulseRestored = false;
+  } else if (!pulseRestored) {
+    pickableMeshes.forEach(restoreVertexPulse);
+    pulseRestored = true;
+  }
   controls.update();
   renderer.render(scene, camera);
 }
