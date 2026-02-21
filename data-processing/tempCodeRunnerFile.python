@@ -1,0 +1,6 @@
+label = nib.load("orig/orig/pat0_orig_seg.nii.gz")
+data = label.get_fdata()
+
+for label_id in range(1, 9):
+    count = np.sum(data == label_id)
+    print(f"Label {label_id}: {count} voxels")
