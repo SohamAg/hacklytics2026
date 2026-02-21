@@ -4,8 +4,8 @@ import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 
 const container = document.getElementById('canvas-container');
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xf5f4f1);
-scene.fog = new THREE.Fog(0xf5f4f1, 8, 18);
+scene.background = new THREE.Color(0x141418);
+scene.fog = new THREE.Fog(0x141418, 8, 18);
 
 const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
 camera.position.set(0, 0, 5);
