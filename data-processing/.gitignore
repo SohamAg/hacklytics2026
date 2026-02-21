@@ -2,3 +2,5 @@ orig/
 cropped/
 tempCodeRunnerFile.*
 heart_models/
+output/pca_model.pkl
+output/scaler_model.pkl

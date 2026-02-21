@@ -5,6 +5,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 import seaborn as sns
+import joblib
 
 df = pd.read_csv("heart_features.csv")
 
@@ -87,3 +88,6 @@ sns.scatterplot(
 plt.title("Morphology PCA Map")
 plt.show()
 # print(signal_df.head(10))
+joblib.dump(pca_model, "../models/pca_model.pkl")
+joblib.dump(scaler_model, "../models/scaler_model.pkl")
+df_pca.to_csv("../models/pca_dataset.csv", index=False)
