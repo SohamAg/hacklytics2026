@@ -87,7 +87,41 @@ function setupVertexPulse(mesh) {
   const weights = new Float32Array(count);
   for (let i = 0; i < count; i++)
     weights[i] = 1 - smoothstep(innerR, outerR, dists[i]);
-  mesh.userData.pulseData = { rest, weights, cx, count };
+  mesh.userData.pulseData = { rest, weights, cx, count, maxDist };
+}
+
+// Simulated impairment: a localized bulge on the heart body (e.g. aneurysm / hypertrophy)
+const BUMP_OFFSET = new THREE.Vector3(0.35, 0.15, 0.2);
+const BUMP_RADIUS_FRAC = 0.22;
+const BUMP_AMOUNT_FRAC = 0.12;
+
+function applyImpairmentBump(mesh) {
+  const data = mesh.userData.pulseData;
+  if (!data || !data.maxDist) return;
+  const { rest, cx, count, maxDist } = data;
+  const bumpCenter = new THREE.Vector3(
+    cx.x + BUMP_OFFSET.x * maxDist,
+    cx.y + BUMP_OFFSET.y * maxDist,
+    cx.z + BUMP_OFFSET.z * maxDist
+  );
+  const bumpRadius = BUMP_RADIUS_FRAC * maxDist;
+  const bumpAmount = BUMP_AMOUNT_FRAC * maxDist;
+  const tmp = new THREE.Vector3();
+  for (let i = 0; i < count; i++) {
+    const j = i * 3;
+    tmp.set(rest[j], rest[j + 1], rest[j + 2]);
+    const toBump = tmp.distanceTo(bumpCenter);
+    if (toBump >= bumpRadius) continue;
+    const falloff = 1 - smoothstep(0, bumpRadius, toBump);
+    const out = tmp.clone().sub(cx).normalize();
+    const push = bumpAmount * falloff;
+    rest[j] += out.x * push;
+    rest[j + 1] += out.y * push;
+    rest[j + 2] += out.z * push;
+  }
+  mesh.geometry.attributes.position.array.set(rest);
+  mesh.geometry.attributes.position.needsUpdate = true;
+  mesh.geometry.computeVertexNormals();
 }
 
 function applyVertexPulse(mesh, mult) {
@@ -201,6 +235,7 @@ loader.load(
     pickableMeshes = [];
     collectMeshes(group, pickableMeshes);
     pickableMeshes.forEach(setupVertexPulse);
+    pickableMeshes.forEach(applyImpairmentBump);
 
     const btn = document.getElementById('heartbeat-btn');
     if (btn) {
