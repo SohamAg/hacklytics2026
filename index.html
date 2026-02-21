@@ -116,7 +116,8 @@
     }
     .toolbar .heartbeat-btn,
     .toolbar .slice-btn,
-    .toolbar .parts-wrap select {
+    .toolbar .parts-wrap select,
+    .toolbar .condition-wrap select {
       font-family: inherit;
       font-size: 0.75rem;
       font-weight: 500;
@@ -135,9 +136,13 @@
       background: rgba(255,255,255,0.12);
       border-color: rgba(255,255,255,0.2);
     }
+    .toolbar .condition-wrap { display: flex; align-items: center; gap: 0.35rem; }
+    .toolbar .condition-wrap span { font-size: 0.7rem; color: #888; }
+    .toolbar .condition-wrap select { min-width: 8rem; }
     .toolbar .parts-wrap { display: flex; align-items: center; gap: 0.35rem; }
     .toolbar .parts-wrap span { font-size: 0.7rem; color: #888; }
-    .toolbar .parts-wrap select {
+    .toolbar .parts-wrap select,
+    .toolbar .condition-wrap select {
       padding-right: 1.5rem;
       appearance: none;
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
@@ -260,6 +265,12 @@
         <div class="toolbar">
           <button type="button" class="heartbeat-btn" id="heartbeat-btn" aria-pressed="false">Start heartbeat</button>
           <button type="button" class="slice-btn" id="slice-btn" aria-pressed="false">Slice view</button>
+          <div class="condition-wrap">
+            <span>Simulate</span>
+            <select id="condition-select" aria-label="Simulate congenital condition">
+              <option value="">Baseline</option>
+            </select>
+          </div>
           <div class="parts-wrap">
             <span>Highlight</span>
             <select id="parts-select" aria-label="Select part to highlight">

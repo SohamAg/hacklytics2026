@@ -191,12 +191,114 @@ function partName(mesh) {
   return n || 'Heart';
 }
 
+// Anatomical part names we can scale from condition data
+const PART_NAMES = ['LV', 'RV', 'LA', 'RA', 'AO', 'PA', 'PV', 'SVC'];
+const PART_NAME_TO_VOL_KEY = { LV: 'Label_1_vol_ml', RV: 'Label_2_vol_ml', LA: 'Label_3_vol_ml', RA: 'Label_4_vol_ml', AO: 'Label_5_vol_ml', PA: 'Label_6_vol_ml', PV: 'Label_7_vol_ml', SVC: 'Label_8_vol_ml' };
+
+// Estimated part per mesh (from OBJ geometry when names are generic e.g. "Group8287")
+let estimatedPartByMesh = null;
+
+function estimatePartsFromGeometry(meshes) {
+  if (!meshes.length) return;
+  const box = new THREE.Box3();
+  const center = new THREE.Vector3();
+  const size = new THREE.Vector3();
+  const items = [];
+  for (const mesh of meshes) {
+    const geo = mesh.geometry;
+    if (!geo?.attributes?.position) continue;
+    if (!geo.boundingBox) geo.computeBoundingBox();
+    box.copy(geo.boundingBox);
+    box.getCenter(center);
+    box.getSize(size);
+    const volumeProxy = size.x * size.y * size.z;
+    items.push({ mesh, center: center.clone(), volumeProxy });
+  }
+  if (items.length === 0) return;
+  items.sort((a, b) => b.volumeProxy - a.volumeProxy);
+  const nSeeds = Math.min(8, items.length);
+  const seeds = items.slice(0, nSeeds);
+  const partOrder = PART_NAMES.slice(0, nSeeds);
+  for (let i = 0; i < seeds.length; i++) seeds[i].part = partOrder[i];
+  estimatedPartByMesh = new Map();
+  for (const item of items) {
+    let bestPart = partOrder[0];
+    let bestD2 = Infinity;
+    for (const seed of seeds) {
+      const d2 = item.center.distanceToSquared(seed.center);
+      if (d2 < bestD2) { bestD2 = d2; bestPart = seed.part; }
+    }
+    estimatedPartByMesh.set(item.mesh, bestPart);
+  }
+}
+
+function getPartForScaling(mesh) {
+  if (PART_NAMES.includes(partName(mesh))) return partName(mesh);
+  return estimatedPartByMesh?.get(mesh) ?? null;
+}
+
+// Condition-based scaling: estimate heart shape for selected congenital condition(s)
+let conditionData = null;
+
+function computeScalesForConditions(selectedConditions) {
+  const def = {};
+  PART_NAMES.forEach(p => { def[p] = 1; });
+  if (!conditionData || !selectedConditions.length) return def;
+  const { condition_multipliers } = conditionData;
+  const scalesByPart = {};
+  for (const p of PART_NAMES) {
+    const volKey = PART_NAME_TO_VOL_KEY[p];
+    let product = 1;
+    let n = 0;
+    for (const c of selectedConditions) {
+      const mult = condition_multipliers[c] && condition_multipliers[c][volKey];
+      if (mult != null && mult > 0) { product *= mult; n++; }
+    }
+    const mult = n > 0 ? Math.pow(product, 1 / n) : 1;
+    scalesByPart[p] = Math.pow(Math.max(0.2, Math.min(5, mult)), 1 / 3);
+  }
+  return scalesByPart;
+}
+
+function applyConditionScales(selectedValue) {
+  const conditions = selectedValue ? selectedValue.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const scalesByPart = computeScalesForConditions(conditions);
+  let anyPartScaled = false;
+  pickableMeshes.forEach((mesh) => {
+    const part = getPartForScaling(mesh);
+    const s = part && scalesByPart[part] != null ? scalesByPart[part] : 1;
+    if (part && scalesByPart[part] != null) anyPartScaled = true;
+    mesh.scale.setScalar(s);
+  });
+  if (heartGroup) {
+    if (conditions.length && !anyPartScaled && conditionData?.condition_multipliers) {
+      let product = 1, n = 0;
+      for (const c of conditions) {
+        const m = conditionData.condition_multipliers[c]?.Total_heart_vol;
+        if (m != null && m > 0) { product *= m; n++; }
+      }
+      const mult = n > 0 ? Math.pow(product, 1 / n) : 1;
+      const groupScale = Math.pow(Math.max(0.5, Math.min(2, mult)), 1 / 3);
+      heartGroup.scale.setScalar(heartBaseScale * groupScale);
+    } else {
+      heartGroup.scale.setScalar(heartBaseScale);
+    }
+  }
+}
+
 function getPartNames() {
-  const names = [...new Set(pickableMeshes.map((m) => partName(m)))].sort((a, b) => a.localeCompare(b));
-  return names;
+  const byObjName = [...new Set(pickableMeshes.map((m) => partName(m)))].sort((a, b) => a.localeCompare(b));
+  if (estimatedPartByMesh && estimatedPartByMesh.size > 0) {
+    const byPart = [...new Set([...estimatedPartByMesh.values()])].sort((a, b) => a.localeCompare(b));
+    return [...byPart, ...byObjName.filter((n) => !PART_NAMES.includes(n))];
+  }
+  return byObjName;
 }
 
 function meshesByName(name) {
+  if (PART_NAMES.includes(name) && estimatedPartByMesh) {
+    return pickableMeshes.filter((m) => getPartForScaling(m) === name);
+  }
   return pickableMeshes.filter((m) => partName(m) === name);
 }
 
@@ -223,6 +325,12 @@ function onPartSelect() {
   selectedMeshes = value ? meshesByName(value) : [];
   selectedMeshes.forEach((m) => setHighlight(m, true));
 }
+
+// Load condition–feature data for "Simulate condition" (run data-processing/discover_trends.py to generate)
+fetch('./models/condition_effects.json')
+  .then((r) => r.ok ? r.json() : Promise.reject(new Error('Not found')))
+  .then((data) => { conditionData = data; })
+  .catch(() => {});
 
 const loader = new OBJLoader();
 const defaultMaterial = new THREE.MeshStandardMaterial({
@@ -257,6 +365,34 @@ loader.load(
     collectMeshes(group, pickableMeshes);
     pickableMeshes.forEach(setupVertexPulse);
     pickableMeshes.forEach(applyImpairmentBump);
+    estimatePartsFromGeometry(pickableMeshes);
+
+    // Condition selector: estimate heart shape for selected congenital condition(s)
+    const conditionSelect = document.getElementById('condition-select');
+    if (conditionSelect) {
+      conditionSelect.innerHTML = '<option value="">Baseline</option>';
+      if (conditionData && conditionData.condition_multipliers) {
+        const conds = Object.keys(conditionData.condition_multipliers).filter((c) => c !== 'Normal' && c !== 'CMRArtifactAO' && c !== 'CMRArtifactPA');
+        conds.sort((a, b) => a.localeCompare(b));
+        conds.forEach((c) => {
+          const opt = document.createElement('option');
+          opt.value = c;
+          opt.textContent = c;
+          conditionSelect.appendChild(opt);
+        });
+        const combos = [['VSD', 'ASD'], ['VSD', 'DORV'], ['ASD', 'DORV']];
+        combos.forEach(([a, b]) => {
+          if (conditionData.condition_multipliers[a] && conditionData.condition_multipliers[b]) {
+            const opt = document.createElement('option');
+            opt.value = `${a},${b}`;
+            opt.textContent = `${a} + ${b}`;
+            conditionSelect.appendChild(opt);
+          }
+        });
+      }
+      conditionSelect.addEventListener('change', () => applyConditionScales(conditionSelect.value));
+      applyConditionScales('');
+    }
 
     const btn = document.getElementById('heartbeat-btn');
     if (btn) {
