@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Heart Viewer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: 'Outfit', system-ui, sans-serif;
+      background: #f5f4f1;
+      color: #1c1c1c;
+      overflow: hidden;
+    }
+    .app {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+    #canvas-container {
+      position: absolute;
+      inset: 0;
+      background: #f5f4f1;
+    }
+    #canvas-container canvas { display: block; width: 100%; height: 100%; }
+    .top-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.5rem;
+      background: linear-gradient(to bottom, rgba(245,244,241,0.97) 0%, rgba(245,244,241,0.85) 100%);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+    }
+    .top-bar h1 {
+      font-size: 1.125rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: #1c1c1c;
+    }
+    .parts-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .parts-wrap span {
+      font-size: 0.8125rem;
+      color: #5c5c5c;
+      font-weight: 500;
+    }
+    .parts-wrap select {
+      font-family: inherit;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: #1c1c1c;
+      background: #fff;
+      border: 1px solid rgba(0,0,0,0.1);
+      border-radius: 8px;
+      padding: 0.5rem 2rem 0.5rem 0.75rem;
+      cursor: pointer;
+      outline: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%235c5c5c' stroke-width='2'%3E%3Cpath d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.6rem center;
+    }
+    .parts-wrap select:hover { border-color: rgba(0,0,0,0.2); }
+    .parts-wrap select:focus { border-color: #2d7aff; box-shadow: 0 0 0 2px rgba(45,122,255,0.15); }
+    .hint {
+      position: absolute;
+      bottom: 1.25rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      font-size: 0.75rem;
+      color: #7a7a7a;
+      background: rgba(255,255,255,0.9);
+      padding: 0.4rem 0.75rem;
+      border-radius: 20px;
+      border: 1px solid rgba(0,0,0,0.06);
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="top-bar">
+      <h1>Heart Viewer</h1>
+      <div class="parts-wrap">
+        <span>Highlight</span>
+        <select id="parts-select" aria-label="Select part to highlight">
+          <option value="">—</option>
+        </select>
+      </div>
+    </header>
+    <div id="canvas-container"></div>
+    <p class="hint">Drag to rotate · Scroll to zoom</p>
+  </div>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module" src="heart-scene.js"></script>
+</body>
+</html>
