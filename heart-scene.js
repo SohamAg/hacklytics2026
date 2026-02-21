@@ -14,6 +14,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(container.clientWidth, container.clientHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.localClippingEnabled = true;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1;
 container.appendChild(renderer.domElement);
@@ -39,6 +40,10 @@ let heartGroup = null;
 let heartBaseScale = 1;
 let heartbeatEnabled = false;
 let pulseRestored = true;
+let sliceEnabled = false;
+let sliceAxis = 'y';
+let slicePosition = 0;
+const slicePlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const highlightColor = new THREE.Color(0x7eb8ff);
 const highlightIntensity = 0.75;
 
@@ -161,6 +166,22 @@ function meshesByName(name) {
   return pickableMeshes.filter((m) => partName(m) === name);
 }
 
+function updateSlicePlane() {
+  const axes = { x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] };
+  const [nx, ny, nz] = axes[sliceAxis];
+  slicePlane.normal.set(nx, ny, nz);
+  slicePlane.constant = -slicePosition;
+}
+
+function applySliceToMeshes(enabled) {
+  pickableMeshes.forEach((mesh) => {
+    if (mesh.material) {
+      mesh.material.clippingPlanes = enabled ? [slicePlane] : [];
+      mesh.material.side = enabled ? THREE.DoubleSide : THREE.FrontSide;
+    }
+  });
+}
+
 function onPartSelect() {
   const select = document.getElementById('parts-select');
   const value = select?.value ?? '';
@@ -224,6 +245,44 @@ loader.load(
       });
       select.addEventListener('change', onPartSelect);
     }
+
+    const sliceBtn = document.getElementById('slice-btn');
+    const sliceControls = document.getElementById('slice-controls');
+    const slicePositionInput = document.getElementById('slice-position');
+    const axisButtons = document.querySelectorAll('.slice-controls .axis-row button');
+
+    if (sliceBtn) {
+      sliceBtn.addEventListener('click', () => {
+        sliceEnabled = !sliceEnabled;
+        sliceBtn.textContent = sliceEnabled ? 'Exit slice view' : 'Slice view';
+        sliceBtn.classList.toggle('active', sliceEnabled);
+        sliceBtn.setAttribute('aria-pressed', sliceEnabled);
+        if (sliceControls) {
+          sliceControls.classList.toggle('visible', sliceEnabled);
+          sliceControls.setAttribute('aria-hidden', !sliceEnabled);
+        }
+        updateSlicePlane();
+        applySliceToMeshes(sliceEnabled);
+      });
+    }
+
+    if (slicePositionInput) {
+      slicePositionInput.addEventListener('input', () => {
+        slicePosition = parseFloat(slicePositionInput.value);
+        updateSlicePlane();
+        if (sliceEnabled) applySliceToMeshes(true);
+      });
+    }
+
+    axisButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        axisButtons.forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        sliceAxis = btn.dataset.axis;
+        updateSlicePlane();
+        if (sliceEnabled) applySliceToMeshes(true);
+      });
+    });
   },
   undefined,
   (e) => console.error('Failed to load model', e)
