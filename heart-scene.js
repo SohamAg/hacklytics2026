@@ -16,7 +16,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.localClippingEnabled = true;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1;
+renderer.toneMappingExposure = 1.25;
 container.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -26,11 +26,11 @@ controls.minDistance = 1;
 controls.maxDistance = 15;
 controls.target.set(0, 0, 0);
 
-scene.add(new THREE.AmbientLight(0xa0a0b0, 0.7));
-const key = new THREE.DirectionalLight(0xffffff, 0.85);
+scene.add(new THREE.AmbientLight(0xb8b8c8, 0.95));
+const key = new THREE.DirectionalLight(0xffffff, 1.35);
 key.position.set(3, 4, 5);
 scene.add(key);
-const fill = new THREE.DirectionalLight(0xe8e8f0, 0.4);
+const fill = new THREE.DirectionalLight(0xe8e8f0, 0.6);
 fill.position.set(-2, 1, 3);
 scene.add(fill);
 
@@ -95,40 +95,6 @@ function setupVertexPulse(mesh) {
   mesh.userData.pulseData = { rest, weights, cx, count, maxDist };
 }
 
-// Simulated impairment: a localized bulge on the heart body (e.g. aneurysm / hypertrophy)
-const BUMP_OFFSET = new THREE.Vector3(0.35, 0.15, 0.2);
-const BUMP_RADIUS_FRAC = 0.22;
-const BUMP_AMOUNT_FRAC = 0.12;
-
-function applyImpairmentBump(mesh) {
-  const data = mesh.userData.pulseData;
-  if (!data || !data.maxDist) return;
-  const { rest, cx, count, maxDist } = data;
-  const bumpCenter = new THREE.Vector3(
-    cx.x + BUMP_OFFSET.x * maxDist,
-    cx.y + BUMP_OFFSET.y * maxDist,
-    cx.z + BUMP_OFFSET.z * maxDist
-  );
-  const bumpRadius = BUMP_RADIUS_FRAC * maxDist;
-  const bumpAmount = BUMP_AMOUNT_FRAC * maxDist;
-  const tmp = new THREE.Vector3();
-  for (let i = 0; i < count; i++) {
-    const j = i * 3;
-    tmp.set(rest[j], rest[j + 1], rest[j + 2]);
-    const toBump = tmp.distanceTo(bumpCenter);
-    if (toBump >= bumpRadius) continue;
-    const falloff = 1 - smoothstep(0, bumpRadius, toBump);
-    const out = tmp.clone().sub(cx).normalize();
-    const push = bumpAmount * falloff;
-    rest[j] += out.x * push;
-    rest[j + 1] += out.y * push;
-    rest[j + 2] += out.z * push;
-  }
-  mesh.geometry.attributes.position.array.set(rest);
-  mesh.geometry.attributes.position.needsUpdate = true;
-  mesh.geometry.computeVertexNormals();
-}
-
 function applyVertexPulse(mesh, mult) {
   const data = mesh.userData.pulseData;
   if (!data) return;
@@ -156,18 +122,15 @@ function restoreVertexPulse(mesh) {
 
 function collectMeshes(obj, list) {
   if (obj.isMesh) {
-    if (!obj.material.emissive) {
-      const orig = obj.material;
-      obj.material = new THREE.MeshStandardMaterial({
-        color: orig.color ? orig.color.getHex() : 0xc45c5c,
-        roughness: 0.45,
-        metalness: 0.08,
-        emissive: 0x000000,
-        emissiveIntensity: 0,
-      });
-    } else {
-      obj.material = obj.material.clone();
-    }
+    const orig = obj.material;
+    // Always create a new material per mesh so part colors can be applied independently
+    obj.material = new THREE.MeshStandardMaterial({
+      color: orig && orig.color ? orig.color.getHex() : 0xc45c5c,
+      roughness: 0.45,
+      metalness: 0.08,
+      emissive: 0x000000,
+      emissiveIntensity: 0,
+    });
     list.push(obj);
   }
   for (const child of obj.children) collectMeshes(child, list);
@@ -194,6 +157,40 @@ function partName(mesh) {
 // Anatomical part names we can scale from condition data
 const PART_NAMES = ['LV', 'RV', 'LA', 'RA', 'AO', 'PA', 'PV', 'SVC'];
 const PART_NAME_TO_VOL_KEY = { LV: 'Label_1_vol_ml', RV: 'Label_2_vol_ml', LA: 'Label_3_vol_ml', RA: 'Label_4_vol_ml', AO: 'Label_5_vol_ml', PA: 'Label_6_vol_ml', PV: 'Label_7_vol_ml', SVC: 'Label_8_vol_ml' };
+// OBJ object names that map to our part keys (e.g. heart_export.obj uses "Aorta", "IVC")
+const OBJ_NAME_TO_PART = { 'Aorta': 'AO', 'IVC': 'SVC' };
+
+// Distinct colors per segment for anatomy visualization (hex).
+// Map both part keys (LV, AO) and OBJ group names (Aorta, IVC) so colors apply regardless of loader structure.
+const PART_COLORS = {
+  LV: 0xc45c5c,   // left ventricle – main red
+  RV: 0xd47878,   // right ventricle – lighter red
+  LA: 0xa84444,   // left atrium
+  RA: 0xb85858,   // right atrium
+  AO: 0x8b3a3a,   // aorta – darker
+  PA: 0x9a4a4a,   // pulmonary artery
+  PV: 0x7a3a3a,   // pulmonary veins
+  SVC: 0x6a3232,  // superior vena cava
+};
+const MESH_NAME_TO_COLOR = {
+  ...PART_COLORS,
+  Aorta: PART_COLORS.AO,
+  IVC: PART_COLORS.SVC,
+};
+const DEFAULT_PART_COLOR = 0xc45c5c;
+
+function applyPartColors(meshes) {
+  for (const mesh of meshes) {
+    if (!mesh.material) continue;
+    const part = getPartForScaling(mesh);
+    let hex = part && PART_COLORS[part] != null ? PART_COLORS[part] : null;
+    if (hex == null) {
+      const name = (mesh.name && mesh.name.trim()) || '';
+      hex = MESH_NAME_TO_COLOR[name] != null ? MESH_NAME_TO_COLOR[name] : DEFAULT_PART_COLOR;
+    }
+    mesh.material.color.setHex(hex);
+  }
+}
 
 // Estimated part per mesh (from OBJ geometry when names are generic e.g. "Group8287")
 let estimatedPartByMesh = null;
@@ -233,7 +230,9 @@ function estimatePartsFromGeometry(meshes) {
 }
 
 function getPartForScaling(mesh) {
-  if (PART_NAMES.includes(partName(mesh))) return partName(mesh);
+  const name = partName(mesh);
+  if (PART_NAMES.includes(name)) return name;
+  if (OBJ_NAME_TO_PART[name]) return OBJ_NAME_TO_PART[name];
   return estimatedPartByMesh?.get(mesh) ?? null;
 }
 
@@ -333,22 +332,29 @@ fetch('./models/condition_effects.json')
   .catch(() => {});
 
 const loader = new OBJLoader();
-const defaultMaterial = new THREE.MeshStandardMaterial({
-  color: 0xc45c5c,
-  roughness: 0.45,
-  metalness: 0.08,
-  emissive: 0x000000,
-  emissiveIntensity: 0,
-});
+
+const HEART_MODEL_PATH = document.querySelector('meta[name="heart-model"]')?.getAttribute('content') || './SubTool-0-7412864.OBJ';
+const modelUrl = (HEART_MODEL_PATH.startsWith('/') && window.location.protocol !== 'file:')
+  ? window.location.origin + HEART_MODEL_PATH
+  : new URL(HEART_MODEL_PATH, window.location.href).href;
+
+function setLoadStatus(msg, isError) {
+  const el = document.getElementById('load-status');
+  if (el) {
+    el.textContent = msg;
+    el.style.display = 'block';
+    el.style.color = isError ? '#e86c6c' : '#888';
+  }
+}
+
+setLoadStatus('Loading model…');
 
 loader.load(
-  './SubTool-0-7412864.OBJ',
+  modelUrl,
   (group) => {
-    group.traverse((node) => {
-      if (node.isMesh && node.material) {
-        node.material = defaultMaterial.clone();
-      }
-    });
+    setLoadStatus('');
+    const statusEl = document.getElementById('load-status');
+    if (statusEl) statusEl.style.display = 'none';
     scene.add(group);
 
     const box = new THREE.Box3().setFromObject(group);
@@ -364,8 +370,8 @@ loader.load(
     pickableMeshes = [];
     collectMeshes(group, pickableMeshes);
     pickableMeshes.forEach(setupVertexPulse);
-    pickableMeshes.forEach(applyImpairmentBump);
     estimatePartsFromGeometry(pickableMeshes);
+    applyPartColors(pickableMeshes);
 
     // Condition selector: estimate heart shape for selected congenital condition(s)
     const conditionSelect = document.getElementById('condition-select');
@@ -455,8 +461,16 @@ loader.load(
       });
     });
   },
-  undefined,
-  (e) => console.error('Failed to load model', e)
+  (xhr) => {
+    if (xhr.lengthComputable) {
+      const pct = Math.round((xhr.loaded / xhr.total) * 100);
+      setLoadStatus(`Loading model… ${pct}%`);
+    }
+  },
+  (err) => {
+    console.error('Failed to load heart model', err);
+    setLoadStatus('Failed to load model. Check console (F12). Use a local server (e.g. python3 -m http.server 8000).', true);
+  }
 );
 
 window.addEventListener('resize', () => {
