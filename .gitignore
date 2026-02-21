@@ -1,7 +1,8 @@
 *.nii.gz
-SubTool-0-7412864.OBJ
+healthy.OBJ
 cropped_norm_data/
 cropped_data/
 cropped_norm_data.zip
 cropped_data.zip
 .DS_Store
+*.obj
