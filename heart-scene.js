@@ -342,7 +342,7 @@ const defaultMaterial = new THREE.MeshStandardMaterial({
 });
 
 loader.load(
-  './SubTool-0-7412864.OBJ',
+  './data-processing/heart_model.obj',
   (group) => {
     group.traverse((node) => {
       if (node.isMesh && node.material) {
