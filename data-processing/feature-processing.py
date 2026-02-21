@@ -27,7 +27,7 @@ def analyze_severity_signal(df):
         for cat in categories:
             groups.append(df[df["Category"] == cat][feature])
         
-        # ANOVA test
+        #ANOVA test
         try:
             f_stat, p_value = f_oneway(*groups)
         except:
@@ -56,7 +56,7 @@ def run_pca(df):
 
     X = df[feature_cols].values
 
-    # Standardize (VERY IMPORTANT)
+    # Standardizing
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
 
@@ -72,7 +72,7 @@ def run_pca(df):
 
     return df_pca, pca, scaler
 
-# signal_df = analyze_severity_signal(df)
+#signal_df = analyze_severity_signal(df)
 df_pca, pca_model, scaler_model = run_pca(df)
 
 plt.figure(figsize=(8,6))
