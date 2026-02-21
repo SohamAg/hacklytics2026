@@ -77,6 +77,49 @@
       color: #fff;
       border-color: #1c1c1c;
     }
+    .slice-controls {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 1.5rem;
+      margin-top: 0.5rem;
+      padding: 0.75rem 1rem;
+      background: #fff;
+      border: 1px solid rgba(0,0,0,0.1);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      z-index: 20;
+    }
+    .slice-controls.visible { display: block; }
+    .slice-controls label {
+      display: block;
+      font-size: 0.75rem;
+      color: #5c5c5c;
+      margin-bottom: 0.25rem;
+    }
+    .slice-controls .axis-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .slice-controls .axis-row button {
+      font-family: inherit;
+      font-size: 0.75rem;
+      padding: 0.3rem 0.5rem;
+      border: 1px solid rgba(0,0,0,0.1);
+      border-radius: 6px;
+      background: #fff;
+      cursor: pointer;
+    }
+    .slice-controls .axis-row button.active {
+      background: #1c1c1c;
+      color: #fff;
+      border-color: #1c1c1c;
+    }
+    .slice-controls input[type="range"] {
+      width: 140px;
+      margin-top: 0.25rem;
+    }
     .parts-wrap span {
       font-size: 0.8125rem;
       color: #5c5c5c;
@@ -121,12 +164,23 @@
       <h1>Heart Viewer</h1>
       <div class="top-bar-actions">
         <button type="button" class="heartbeat-btn" id="heartbeat-btn" aria-pressed="false">Start heartbeat</button>
+        <button type="button" class="heartbeat-btn slice-btn" id="slice-btn" aria-pressed="false">Slice view</button>
         <div class="parts-wrap">
           <span>Highlight</span>
           <select id="parts-select" aria-label="Select part to highlight">
             <option value="">—</option>
           </select>
         </div>
+      </div>
+      <div class="slice-controls" id="slice-controls" aria-hidden="true">
+        <label>Slice axis</label>
+        <div class="axis-row">
+          <button type="button" data-axis="x">X</button>
+          <button type="button" data-axis="y" class="active">Y</button>
+          <button type="button" data-axis="z">Z</button>
+        </div>
+        <label>Position</label>
+        <input type="range" id="slice-position" min="-1" max="1" step="0.01" value="0" />
       </div>
     </header>
     <div id="canvas-container"></div>
