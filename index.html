@@ -3,134 +3,314 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Heart Viewer</title>
+  <meta name="heart-model" content="./heart_model.obj" />
+  <title>HeartScape — Interactive 3D Cardiac Visualization</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; }
     body {
       font-family: 'Outfit', system-ui, sans-serif;
-      background: #f5f4f1;
-      color: #1c1c1c;
+      background: #0d0d0f;
+      color: #e8e6e3;
       overflow: hidden;
+      -webkit-font-smoothing: antialiased;
     }
     .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    .header {
+      flex-shrink: 0;
+      padding: 0.75rem 1.25rem;
+      background: rgba(18, 18, 20, 0.95);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .brand {
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+    }
+    .brand h1 {
+      font-size: 1.375rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: #fff;
+    }
+    .brand .tagline {
+      font-size: 0.8125rem;
+      color: #888;
+      font-weight: 400;
+    }
+    .about-toggle {
+      font-family: inherit;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: #7a7a7a;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 0.35rem 0.5rem;
+      border-radius: 6px;
+    }
+    .header-nav { display: flex; align-items: center; gap: 1rem; }
+    .nav-link { font-size: 0.75rem; color: #7a7a7a; text-decoration: none; }
+    .nav-link:hover { color: #ccc; }
+    .about-toggle:hover { color: #ccc; background: rgba(255,255,255,0.06); }
+    .about-panel {
+      display: none;
+      padding: 1rem 1.25rem;
+      background: rgba(18, 18, 20, 0.98);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      max-height: 40vh;
+      overflow-y: auto;
+    }
+    .about-panel.visible { display: block; }
+    .about-panel p {
+      font-size: 0.8125rem;
+      line-height: 1.6;
+      color: #b0b0b0;
+      margin-bottom: 0.75rem;
+    }
+    .about-panel p:last-child { margin-bottom: 0; }
+    .main {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+    }
+    .viz-wrapper {
+      flex: 1;
+      min-width: 0;
       position: relative;
-      width: 100%;
-      height: 100%;
+      background: #141418;
     }
     #canvas-container {
       position: absolute;
       inset: 0;
-      background: #f5f4f1;
+      background: #141418;
     }
     #canvas-container canvas { display: block; width: 100%; height: 100%; }
-    .top-bar {
+    .viz-hint {
       position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      z-index: 10;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 1rem 1.5rem;
-      background: linear-gradient(to bottom, rgba(245,244,241,0.97) 0%, rgba(245,244,241,0.85) 100%);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid rgba(0,0,0,0.06);
-    }
-    .top-bar h1 {
-      font-size: 1.125rem;
-      font-weight: 600;
-      letter-spacing: -0.02em;
-      color: #1c1c1c;
-    }
-    .top-bar-actions {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-    .parts-wrap {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    .heartbeat-btn {
-      font-family: inherit;
-      font-size: 0.8125rem;
-      font-weight: 500;
-      color: #1c1c1c;
-      background: #fff;
-      border: 1px solid rgba(0,0,0,0.1);
-      border-radius: 8px;
-      padding: 0.5rem 0.75rem;
-      cursor: pointer;
-      outline: none;
-      transition: border-color 0.15s, box-shadow 0.15s;
-    }
-    .heartbeat-btn:hover { border-color: rgba(0,0,0,0.2); }
-    .heartbeat-btn:focus { border-color: #2d7aff; box-shadow: 0 0 0 2px rgba(45,122,255,0.15); }
-    .heartbeat-btn.active {
-      background: #1c1c1c;
-      color: #fff;
-      border-color: #1c1c1c;
-    }
-    .parts-wrap span {
-      font-size: 0.8125rem;
-      color: #5c5c5c;
-      font-weight: 500;
-    }
-    .parts-wrap select {
-      font-family: inherit;
-      font-size: 0.8125rem;
-      font-weight: 500;
-      color: #1c1c1c;
-      background: #fff;
-      border: 1px solid rgba(0,0,0,0.1);
-      border-radius: 8px;
-      padding: 0.5rem 2rem 0.5rem 0.75rem;
-      cursor: pointer;
-      outline: none;
-      appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%235c5c5c' stroke-width='2'%3E%3Cpath d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 0.6rem center;
-    }
-    .parts-wrap select:hover { border-color: rgba(0,0,0,0.2); }
-    .parts-wrap select:focus { border-color: #2d7aff; box-shadow: 0 0 0 2px rgba(45,122,255,0.15); }
-    .hint {
-      position: absolute;
-      bottom: 1.25rem;
+      bottom: 1rem;
       left: 50%;
       transform: translateX(-50%);
-      z-index: 10;
-      font-size: 0.75rem;
-      color: #7a7a7a;
-      background: rgba(255,255,255,0.9);
-      padding: 0.4rem 0.75rem;
-      border-radius: 20px;
-      border: 1px solid rgba(0,0,0,0.06);
+      z-index: 5;
+      font-size: 0.6875rem;
+      color: rgba(255,255,255,0.4);
+      background: rgba(0,0,0,0.35);
+      padding: 0.35rem 0.65rem;
+      border-radius: 6px;
     }
+    .toolbar {
+      position: absolute;
+      top: 0.75rem;
+      left: 0.75rem;
+      z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .toolbar .heartbeat-btn,
+    .toolbar .slice-btn,
+    .toolbar .parts-wrap select,
+    .toolbar .condition-wrap select {
+      font-family: inherit;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: #e8e6e3;
+      background: rgba(30, 30, 36, 0.9);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      padding: 0.4rem 0.6rem;
+      cursor: pointer;
+      outline: none;
+    }
+    .toolbar .heartbeat-btn:hover,
+    .toolbar .slice-btn:hover { border-color: rgba(255,255,255,0.2); }
+    .toolbar .heartbeat-btn.active,
+    .toolbar .slice-btn.active {
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(255,255,255,0.2);
+    }
+    .toolbar .condition-wrap { display: flex; align-items: center; gap: 0.35rem; }
+    .toolbar .condition-wrap span { font-size: 0.7rem; color: #888; }
+    .toolbar .condition-wrap select { min-width: 8rem; }
+    .toolbar .parts-wrap { display: flex; align-items: center; gap: 0.35rem; }
+    .toolbar .parts-wrap span { font-size: 0.7rem; color: #888; }
+    .toolbar .parts-wrap select,
+    .toolbar .condition-wrap select {
+      padding-right: 1.5rem;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.4rem center;
+    }
+    .slice-controls {
+      display: none;
+      position: absolute;
+      top: 2.75rem;
+      left: 0.75rem;
+      z-index: 10;
+      padding: 0.5rem 0.75rem;
+      background: rgba(30, 30, 36, 0.95);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+    }
+    .slice-controls.visible { display: block; }
+    .slice-controls label { font-size: 0.65rem; color: #888; display: block; margin-bottom: 0.2rem; }
+    .slice-controls .axis-row { display: flex; gap: 0.25rem; margin-bottom: 0.35rem; }
+    .slice-controls .axis-row button {
+      font-family: inherit; font-size: 0.65rem; padding: 0.2rem 0.4rem;
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 4px;
+      background: transparent; color: #aaa; cursor: pointer;
+    }
+    .slice-controls .axis-row button.active { background: rgba(255,255,255,0.15); color: #fff; }
+    .slice-controls input[type="range"] { width: 120px; margin-top: 0.15rem; }
+    .chat-panel {
+      width: 380px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      background: rgba(18, 18, 20, 0.98);
+      border-left: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .chat-header {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: #e8e6e3;
+    }
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .chat-msg {
+      font-size: 0.8125rem;
+      line-height: 1.5;
+      max-width: 92%;
+    }
+    .chat-msg.user {
+      align-self: flex-end;
+      background: rgba(45, 122, 255, 0.2);
+      color: #e8e6e3;
+      padding: 0.5rem 0.75rem;
+      border-radius: 10px 10px 4px 10px;
+    }
+    .chat-msg.bot {
+      align-self: flex-start;
+      background: rgba(255, 255, 255, 0.06);
+      color: #c0c0c0;
+      padding: 0.5rem 0.75rem;
+      border-radius: 10px 10px 10px 4px;
+    }
+    .chat-input-wrap {
+      padding: 0.75rem 1rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .chat-input-wrap input {
+      flex: 1;
+      font-family: inherit;
+      font-size: 0.8125rem;
+      color: #e8e6e3;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 0.5rem 0.75rem;
+      outline: none;
+    }
+    .chat-input-wrap input::placeholder { color: #666; }
+    .chat-input-wrap input:focus { border-color: rgba(45, 122, 255, 0.5); }
+    .chat-input-wrap button {
+      font-family: inherit;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: #fff;
+      background: #2d7aff;
+      border: none;
+      border-radius: 8px;
+      padding: 0.5rem 0.85rem;
+      cursor: pointer;
+    }
+    .chat-input-wrap button:hover { background: #3d8aff; }
   </style>
 </head>
 <body>
   <div class="app">
-    <header class="top-bar">
-      <h1>Heart Viewer</h1>
-      <div class="top-bar-actions">
-        <button type="button" class="heartbeat-btn" id="heartbeat-btn" aria-pressed="false">Start heartbeat</button>
-        <div class="parts-wrap">
-          <span>Highlight</span>
-          <select id="parts-select" aria-label="Select part to highlight">
-            <option value="">—</option>
-          </select>
-        </div>
+    <header class="header">
+      <div class="brand">
+        <h1>HeartScape</h1>
+        <span class="tagline">Interactive 3D cardiac visualization</span>
       </div>
+      <nav class="header-nav">
+        <button type="button" class="about-toggle" id="about-toggle" aria-expanded="false">About</button>
+      </nav>
     </header>
-    <div id="canvas-container"></div>
-    <p class="hint">Drag to rotate · Scroll to zoom</p>
+    <section class="about-panel" id="about-panel" aria-hidden="true">
+      <p>HeartScape is an interactive 3D cardiac visualization platform that transforms medical imaging data into dynamic, explorable models of the human heart. Using real scan-derived anatomical structures, the platform allows users to rotate, slice, annotate, and compare healthy and diseased hearts in an intuitive environment.</p>
+      <p>By visualizing how conditions such as cardiomyopathy, hypertrophy, or structural defects alter cardiac anatomy over time, HeartScape makes complex medical information accessible to clinicians, researchers, students, and patients alike.</p>
+      <p>Rather than viewing static images, users can explore the heart as a living system — examining structural changes, understanding disease progression, and interacting directly with patient-specific anatomy.</p>
+    </section>
+    <main class="main">
+      <div class="viz-wrapper">
+        <div class="toolbar">
+          <button type="button" class="heartbeat-btn" id="heartbeat-btn" aria-pressed="false">Start heartbeat</button>
+          <button type="button" class="slice-btn" id="slice-btn" aria-pressed="false">Slice view</button>
+          <div class="condition-wrap">
+            <span>Simulate</span>
+            <select id="condition-select" aria-label="Simulate congenital condition">
+              <option value="">Baseline</option>
+            </select>
+          </div>
+          <div class="parts-wrap">
+            <span>Highlight</span>
+            <select id="parts-select" aria-label="Select part to highlight">
+              <option value="">—</option>
+            </select>
+          </div>
+        </div>
+        <div class="slice-controls" id="slice-controls" aria-hidden="true">
+          <label>Slice axis</label>
+          <div class="axis-row">
+            <button type="button" data-axis="x">X</button>
+            <button type="button" data-axis="y" class="active">Y</button>
+            <button type="button" data-axis="z">Z</button>
+          </div>
+          <label>Position</label>
+          <input type="range" id="slice-position" min="-1" max="1" step="0.01" value="0" />
+        </div>
+        <div id="canvas-container"></div>
+        <p id="load-status" class="viz-hint" style="display:none;"></p>
+        <p class="viz-hint">Drag to rotate · Scroll to zoom</p>
+      </div>
+      <aside class="chat-panel">
+        <div class="chat-header">Ask about the model</div>
+        <div class="chat-messages" id="chat-messages">
+          <div class="chat-msg bot" data-welcome>
+            Ask me anything about this heart model: anatomy, how to use the viewer, or what the impairment (bump) represents. I can explain parts, controls, and the visualization.
+          </div>
+        </div>
+        <div class="chat-input-wrap">
+          <input type="text" id="chat-input" placeholder="Ask a question about the heart model..." autocomplete="off" />
+          <button type="button" id="chat-send">Send</button>
+        </div>
+      </aside>
+    </main>
   </div>
   <script type="importmap">
     {
@@ -141,5 +321,57 @@
     }
   </script>
   <script type="module" src="heart-scene.js"></script>
+  <script>
+    (function() {
+      const aboutToggle = document.getElementById('about-toggle');
+      const aboutPanel = document.getElementById('about-panel');
+      if (aboutToggle && aboutPanel) {
+        aboutToggle.addEventListener('click', function() {
+          const open = aboutPanel.classList.toggle('visible');
+          aboutToggle.setAttribute('aria-expanded', open);
+          aboutToggle.textContent = open ? 'Hide' : 'About';
+        });
+      }
+      const messagesEl = document.getElementById('chat-messages');
+      const inputEl = document.getElementById('chat-input');
+      const sendBtn = document.getElementById('chat-send');
+      function addMsg(text, isUser) {
+        const welcome = messagesEl.querySelector('[data-welcome]');
+        if (welcome) welcome.remove();
+        const div = document.createElement('div');
+        div.className = 'chat-msg ' + (isUser ? 'user' : 'bot');
+        div.textContent = text;
+        messagesEl.appendChild(div);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+      function reply(question) {
+        const q = question.toLowerCase().trim();
+        if (!q) return "Type a question about the heart model (e.g. anatomy, controls, or the impairment).";
+        if (q.includes('part') || q.includes('anatomy') || q.includes('structure') || q.includes('highlight'))
+          return "Use the **Highlight** dropdown in the toolbar to select a part of the heart; that region will be highlighted in blue. This model can include named segments from scan data. The main body can be emphasized to show how different regions relate.";
+        if (q.includes('heartbeat') || q.includes('pulse') || q.includes('beat'))
+          return "Click **Start heartbeat** to animate the heart with a lub-dub rhythm. Only the body of the heart pulses; vessels stay relatively still to mimic realistic motion. Click **Stop heartbeat** to freeze.";
+        if (q.includes('slice') || q.includes('cut') || q.includes('cross'))
+          return "Use **Slice view** to reveal cross-sections along the X, Y, or Z axis. Adjust the slider to move the cutting plane and inspect internal structure.";
+        if (q.includes('bump') || q.includes('impairment') || q.includes('disease') || q.includes('abnormal') || q.includes('hypertrophy') || q.includes('cardiomyopathy'))
+          return "The bump on the heart body is a **simulated structural impairment** (e.g. focal hypertrophy or aneurysm) to show how conditions can alter anatomy. HeartScape is designed to visualize healthy vs. diseased hearts so clinicians and patients can see such changes clearly.";
+        if (q.includes('rotate') || q.includes('zoom') || q.includes('control') || q.includes('use') || q.includes('how'))
+          return "**Drag** to rotate the heart, **scroll** to zoom in and out. Use the toolbar for heartbeat, slice view, and part highlighting. The 3D model is built from real anatomical data for accurate visualization.";
+        if (q.includes('what') && (q.includes('model') || q.includes('this')))
+          return "This is a 3D human heart model derived from anatomical data. You can explore it interactively: rotate, zoom, highlight parts, run a heartbeat animation, and apply a slice. A simulated impairment (bump) is included to demonstrate how HeartScape can show structural changes.";
+        return "HeartScape lets you explore this 3D heart: rotate and zoom, highlight parts from the dropdown, start/stop the heartbeat, and use slice view for cross-sections. The bump on the body is a simulated impairment for education. Ask about anatomy, controls, or disease visualization.";
+      }
+      function send() {
+        const text = inputEl && inputEl.value.trim();
+        if (!text) return;
+        addMsg(text, true);
+        inputEl.value = '';
+        const botText = reply(text).replace(/\*\*([^*]+)\*\*/g, '$1');
+        addMsg(botText, false);
+      }
+      if (sendBtn) sendBtn.addEventListener('click', send);
+      if (inputEl) inputEl.addEventListener('keydown', function(e) { if (e.key === 'Enter') send(); });
+    })();
+  </script>
 </body>
 </html>
