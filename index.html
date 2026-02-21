@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="heart-model" content="./heart_model.obj" />
   <title>HeartScape — Interactive 3D Cardiac Visualization</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -59,6 +60,9 @@
       padding: 0.35rem 0.5rem;
       border-radius: 6px;
     }
+    .header-nav { display: flex; align-items: center; gap: 1rem; }
+    .nav-link { font-size: 0.75rem; color: #7a7a7a; text-decoration: none; }
+    .nav-link:hover { color: #ccc; }
     .about-toggle:hover { color: #ccc; background: rgba(255,255,255,0.06); }
     .about-panel {
       display: none;
@@ -253,7 +257,9 @@
         <h1>HeartScape</h1>
         <span class="tagline">Interactive 3D cardiac visualization</span>
       </div>
-      <button type="button" class="about-toggle" id="about-toggle" aria-expanded="false">About</button>
+      <nav class="header-nav">
+        <button type="button" class="about-toggle" id="about-toggle" aria-expanded="false">About</button>
+      </nav>
     </header>
     <section class="about-panel" id="about-panel" aria-hidden="true">
       <p>HeartScape is an interactive 3D cardiac visualization platform that transforms medical imaging data into dynamic, explorable models of the human heart. Using real scan-derived anatomical structures, the platform allows users to rotate, slice, annotate, and compare healthy and diseased hearts in an intuitive environment.</p>
@@ -289,6 +295,7 @@
           <input type="range" id="slice-position" min="-1" max="1" step="0.01" value="0" />
         </div>
         <div id="canvas-container"></div>
+        <p id="load-status" class="viz-hint" style="display:none;"></p>
         <p class="viz-hint">Drag to rotate · Scroll to zoom</p>
       </div>
       <aside class="chat-panel">
