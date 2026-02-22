@@ -1,8 +1,21 @@
+import os
+from pathlib import Path
+
 import nibabel as nib
 import numpy as np
 import pyvista as pv
 from skimage import measure
-import os
+
+# Project-relative paths (always resolve from repo root)
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DATA_PROCESSING_DIR = PROJECT_ROOT / "data-processing"
+CROPPED_SEG_DIR = DATA_PROCESSING_DIR / "cropped_data" / "cropped"
+DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "heart_models" / "patient_models"
+
+
+def _resolve_path(p):
+    p = Path(p)
+    return p if p.is_absolute() else (PROJECT_ROOT / p)
 
 
 def save_segmented_obj(filename, seg_data, spacing, label_info):
@@ -59,13 +72,12 @@ def save_segmented_obj(filename, seg_data, spacing, label_info):
             # Get mesh data from smoothed mesh
             verts = mesh.points
             
-            # Center and scale vertices, flip Z axis for correct orientation
+            # Center and scale vertices (no flips)
             centered_verts = (verts - center) * scale
-            
+
             # Write vertices for this segment
             for vert in centered_verts:
-                # Flip Z coordinate to correct orientation
-                f.write(f"v {vert[0]:.6f} {vert[1]:.6f} {-vert[2]:.6f}\n")
+                f.write(f"v {vert[0]:.6f} {vert[1]:.6f} {vert[2]:.6f}\n")
             
             # Write faces for this segment using original face indices
             for face in original_faces:
@@ -81,7 +93,8 @@ def save_segmented_obj(filename, seg_data, spacing, label_info):
 
 def render_label_mesh(nifti_path, label_value, color="red"):
     """Render a single labeled structure from the segmentation."""
-    
+    nifti_path = _resolve_path(nifti_path)
+
     # Load segmentation file
     seg = nib.load(nifti_path)
     seg_data = seg.get_fdata()
@@ -120,6 +133,7 @@ def render_label_mesh(nifti_path, label_value, color="red"):
 
 
 def render_full_heart(nifti_path):
+    nifti_path = _resolve_path(nifti_path)
 
     seg = nib.load(nifti_path)
     seg_data = seg.get_fdata()
@@ -173,6 +187,7 @@ def render_full_heart(nifti_path):
 
 #polished version of the render heart
 def render_polished_heart(nifti_path):
+    nifti_path = _resolve_path(nifti_path)
 
     seg = nib.load(nifti_path)
     seg_data = seg.get_fdata()
@@ -250,7 +265,8 @@ def render_polished_heart(nifti_path):
     plotter.enable_mesh_picking(callback=on_pick, use_actor=True)
 
     # Save mesh with separate groups for each segment
-    save_segmented_obj("heart_model_4.obj", seg_data, seg.header.get_zooms(), label_info)
+    DEFAULT_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    save_segmented_obj(DEFAULT_OUTPUT_DIR / "heart_model_4.obj", seg_data, seg.header.get_zooms(), label_info)
     
     plotter.show()
     
@@ -259,9 +275,10 @@ def render_polished_heart(nifti_path):
 # Batch process patients 0-58
 def batch_process_patients(start_patient=0, end_patient=58, output_folder="heart_models"):
     """Generate OBJ files for multiple patients."""
-    
-    # Create output folder if it doesn't exist
-    os.makedirs(output_folder, exist_ok=True)
+    output_folder = Path(output_folder)
+    if not output_folder.is_absolute():
+        output_folder = PROJECT_ROOT / output_folder
+    output_folder.mkdir(parents=True, exist_ok=True)
     
     label_info = {
         1: ("LV", "red"),
@@ -275,11 +292,11 @@ def batch_process_patients(start_patient=0, end_patient=58, output_folder="heart
     }
     
     for patient_id in range(start_patient, end_patient + 1):
-        nifti_path = f"cropped/cropped/pat{patient_id}_cropped_seg.nii.gz"
-        output_path = os.path.join(output_folder, f"heart_model_pat{patient_id}.obj")
+        nifti_path = CROPPED_SEG_DIR / f"pat{patient_id}_cropped_seg.nii.gz"
+        output_path = DEFAULT_OUTPUT_DIR / f"heart_model_pat{patient_id}.obj"
         
         # Check if file exists
-        if not os.path.exists(nifti_path):
+        if not nifti_path.exists():
             print(f"⚠️  Skipping patient {patient_id}: {nifti_path} not found")
             continue
         
@@ -304,4 +321,3 @@ def batch_process_patients(start_patient=0, end_patient=58, output_folder="heart
 
 # Run batch processing
 batch_process_patients()
-
