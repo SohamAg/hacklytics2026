@@ -38,6 +38,13 @@ let pickableMeshes = [];
 let selectedMeshes = [];
 let heartGroup = null;
 let heartBaseScale = 1;
+let dualViewEnabled = false;
+let sceneRight = null;
+let cameraRight = null;
+let heartGroupRight = null;
+let pickableMeshesRight = [];
+let heartBaseScaleRight = 1;
+let estimatedPartByMeshRight = null;
 let heartbeatEnabled = false;
 let pulseRestored = true;
 let sliceEnabled = false;
@@ -179,10 +186,11 @@ const MESH_NAME_TO_COLOR = {
 };
 const DEFAULT_PART_COLOR = 0xc45c5c;
 
-function applyPartColors(meshes) {
+function applyPartColors(meshes, partMap) {
+  const map = partMap != null ? partMap : estimatedPartByMesh;
   for (const mesh of meshes) {
     if (!mesh.material) continue;
-    const part = getPartForScaling(mesh);
+    const part = map?.get(mesh) ?? (PART_NAMES.includes(partName(mesh)) ? partName(mesh) : OBJ_NAME_TO_PART[partName(mesh)]);
     let hex = part && PART_COLORS[part] != null ? PART_COLORS[part] : null;
     if (hex == null) {
       const name = (mesh.name && mesh.name.trim()) || '';
@@ -195,7 +203,7 @@ function applyPartColors(meshes) {
 // Estimated part per mesh (from OBJ geometry when names are generic e.g. "Group8287")
 let estimatedPartByMesh = null;
 
-function estimatePartsFromGeometry(meshes) {
+function estimatePartsFromGeometry(meshes, targetMap) {
   if (!meshes.length) return;
   const box = new THREE.Box3();
   const center = new THREE.Vector3();
@@ -217,7 +225,8 @@ function estimatePartsFromGeometry(meshes) {
   const seeds = items.slice(0, nSeeds);
   const partOrder = PART_NAMES.slice(0, nSeeds);
   for (let i = 0; i < seeds.length; i++) seeds[i].part = partOrder[i];
-  estimatedPartByMesh = new Map();
+  const map = targetMap || (estimatedPartByMesh = new Map());
+  if (targetMap) targetMap.clear();
   for (const item of items) {
     let bestPart = partOrder[0];
     let bestD2 = Infinity;
@@ -225,15 +234,16 @@ function estimatePartsFromGeometry(meshes) {
       const d2 = item.center.distanceToSquared(seed.center);
       if (d2 < bestD2) { bestD2 = d2; bestPart = seed.part; }
     }
-    estimatedPartByMesh.set(item.mesh, bestPart);
+    map.set(item.mesh, bestPart);
   }
 }
 
-function getPartForScaling(mesh) {
+function getPartForScaling(mesh, side) {
   const name = partName(mesh);
   if (PART_NAMES.includes(name)) return name;
   if (OBJ_NAME_TO_PART[name]) return OBJ_NAME_TO_PART[name];
-  return estimatedPartByMesh?.get(mesh) ?? null;
+  const map = side === 'right' ? estimatedPartByMeshRight : estimatedPartByMesh;
+  return map?.get(mesh) ?? null;
 }
 
 // Condition-based scaling: estimate heart shape for selected congenital condition(s)
@@ -259,17 +269,22 @@ function computeScalesForConditions(selectedConditions) {
   return scalesByPart;
 }
 
-function applyConditionScales(selectedValue) {
+function applyConditionScales(selectedValue, side) {
   const conditions = selectedValue ? selectedValue.split(',').map(s => s.trim()).filter(Boolean) : [];
   const scalesByPart = computeScalesForConditions(conditions);
+  const isRight = side === 'right';
+  const meshes = isRight ? pickableMeshesRight : pickableMeshes;
+  const group = isRight ? heartGroupRight : heartGroup;
+  const baseScale = isRight ? heartBaseScaleRight : heartBaseScale;
+  if (!meshes.length) return;
   let anyPartScaled = false;
-  pickableMeshes.forEach((mesh) => {
-    const part = getPartForScaling(mesh);
+  meshes.forEach((mesh) => {
+    const part = getPartForScaling(mesh, side);
     const s = part && scalesByPart[part] != null ? scalesByPart[part] : 1;
     if (part && scalesByPart[part] != null) anyPartScaled = true;
     mesh.scale.setScalar(s);
   });
-  if (heartGroup) {
+  if (group) {
     if (conditions.length && !anyPartScaled && conditionData?.condition_multipliers) {
       let product = 1, n = 0;
       for (const c of conditions) {
@@ -278,9 +293,9 @@ function applyConditionScales(selectedValue) {
       }
       const mult = n > 0 ? Math.pow(product, 1 / n) : 1;
       const groupScale = Math.pow(Math.max(0.5, Math.min(2, mult)), 1 / 3);
-      heartGroup.scale.setScalar(heartBaseScale * groupScale);
+      group.scale.setScalar(baseScale * groupScale);
     } else {
-      heartGroup.scale.setScalar(heartBaseScale);
+      group.scale.setScalar(baseScale);
     }
   }
 }
@@ -295,10 +310,14 @@ function getPartNames() {
 }
 
 function meshesByName(name) {
-  if (PART_NAMES.includes(name) && estimatedPartByMesh) {
-    return pickableMeshes.filter((m) => getPartForScaling(m) === name);
-  }
-  return pickableMeshes.filter((m) => partName(m) === name);
+  const left = PART_NAMES.includes(name) && estimatedPartByMesh
+    ? pickableMeshes.filter((m) => getPartForScaling(m) === name)
+    : pickableMeshes.filter((m) => partName(m) === name);
+  if (!dualViewEnabled || !pickableMeshesRight.length) return left;
+  const right = PART_NAMES.includes(name) && estimatedPartByMeshRight
+    ? pickableMeshesRight.filter((m) => getPartForScaling(m, 'right') === name)
+    : pickableMeshesRight.filter((m) => partName(m) === name);
+  return [...left, ...right];
 }
 
 function updateSlicePlane() {
@@ -309,12 +328,14 @@ function updateSlicePlane() {
 }
 
 function applySliceToMeshes(enabled) {
-  pickableMeshes.forEach((mesh) => {
+  const apply = (list) => list.forEach((mesh) => {
     if (mesh.material) {
       mesh.material.clippingPlanes = enabled ? [slicePlane] : [];
       mesh.material.side = enabled ? THREE.DoubleSide : THREE.FrontSide;
     }
   });
+  apply(pickableMeshes);
+  if (dualViewEnabled && pickableMeshesRight.length) apply(pickableMeshesRight);
 }
 
 function onPartSelect() {
@@ -330,6 +351,80 @@ fetch('./models/condition_effects.json')
   .then((r) => r.ok ? r.json() : Promise.reject(new Error('Not found')))
   .then((data) => { conditionData = data; })
   .catch(() => {});
+
+function populateConditionOptions(selectEl) {
+  if (!selectEl) return;
+  selectEl.innerHTML = '<option value="">Baseline</option>';
+  if (conditionData?.condition_multipliers) {
+    const conds = Object.keys(conditionData.condition_multipliers).filter((c) => c !== 'Normal' && c !== 'CMRArtifactAO' && c !== 'CMRArtifactPA');
+    conds.sort((a, b) => a.localeCompare(b));
+    conds.forEach((c) => {
+      const opt = document.createElement('option');
+      opt.value = c;
+      opt.textContent = c;
+      selectEl.appendChild(opt);
+    });
+    const combos = [['VSD', 'ASD'], ['VSD', 'DORV'], ['ASD', 'DORV']];
+    combos.forEach(([a, b]) => {
+      if (conditionData.condition_multipliers[a] && conditionData.condition_multipliers[b]) {
+        const opt = document.createElement('option');
+        opt.value = `${a},${b}`;
+        opt.textContent = `${a} + ${b}`;
+        selectEl.appendChild(opt);
+      }
+    });
+  }
+}
+
+function createRightHeart(scale) {
+  if (sceneRight || !heartGroup) return;
+  sceneRight = new THREE.Scene();
+  sceneRight.background = new THREE.Color(0x141418);
+  sceneRight.fog = new THREE.Fog(0x141418, 8, 18);
+  sceneRight.add(new THREE.AmbientLight(0xb8b8c8, 0.95));
+  const keyR = new THREE.DirectionalLight(0xffffff, 1.35);
+  keyR.position.set(3, 4, 5);
+  sceneRight.add(keyR);
+  const fillR = new THREE.DirectionalLight(0xe8e8f0, 0.6);
+  fillR.position.set(-2, 1, 3);
+  sceneRight.add(fillR);
+
+  cameraRight = new THREE.PerspectiveCamera(45, container.clientWidth / 2 / container.clientHeight, 0.1, 1000);
+  cameraRight.position.copy(camera.position);
+  cameraRight.quaternion.copy(camera.quaternion);
+
+  const clone = heartGroup.clone(true);
+  sceneRight.add(clone);
+  heartGroupRight = clone;
+  heartBaseScaleRight = scale;
+
+  pickableMeshesRight = [];
+  collectMeshes(clone, pickableMeshesRight);
+  pickableMeshesRight.forEach(setupVertexPulse);
+  estimatedPartByMeshRight = new Map();
+  estimatePartsFromGeometry(pickableMeshesRight, estimatedPartByMeshRight);
+  applyPartColors(pickableMeshesRight, estimatedPartByMeshRight);
+
+  const leftSelect = document.getElementById('condition-select-left');
+  const rightSelect = document.getElementById('condition-select-right');
+  populateConditionOptions(leftSelect);
+  populateConditionOptions(rightSelect);
+  const mainSelect = document.getElementById('condition-select');
+  if (mainSelect?.value && leftSelect) leftSelect.value = mainSelect.value;
+  if (leftSelect) leftSelect.addEventListener('change', () => applyConditionScales(leftSelect.value, 'left'));
+  if (rightSelect) rightSelect.addEventListener('change', () => applyConditionScales(rightSelect.value, 'right'));
+  applyConditionScales(leftSelect?.value ?? '', 'left');
+  applyConditionScales(rightSelect?.value ?? '', 'right');
+}
+
+function setDualViewUI(on) {
+  const wrapSingle = document.getElementById('condition-wrap-single');
+  const wrapDual = document.getElementById('condition-wrap-dual');
+  const labels = document.getElementById('viewport-labels');
+  if (wrapSingle) wrapSingle.style.display = on ? 'none' : 'flex';
+  if (wrapDual) wrapDual.style.display = on ? 'flex' : 'none';
+  if (labels) labels.classList.toggle('visible', on);
+}
 
 const loader = new OBJLoader();
 
@@ -376,28 +471,33 @@ loader.load(
     // Condition selector: estimate heart shape for selected congenital condition(s)
     const conditionSelect = document.getElementById('condition-select');
     if (conditionSelect) {
-      conditionSelect.innerHTML = '<option value="">Baseline</option>';
-      if (conditionData && conditionData.condition_multipliers) {
-        const conds = Object.keys(conditionData.condition_multipliers).filter((c) => c !== 'Normal' && c !== 'CMRArtifactAO' && c !== 'CMRArtifactPA');
-        conds.sort((a, b) => a.localeCompare(b));
-        conds.forEach((c) => {
-          const opt = document.createElement('option');
-          opt.value = c;
-          opt.textContent = c;
-          conditionSelect.appendChild(opt);
-        });
-        const combos = [['VSD', 'ASD'], ['VSD', 'DORV'], ['ASD', 'DORV']];
-        combos.forEach(([a, b]) => {
-          if (conditionData.condition_multipliers[a] && conditionData.condition_multipliers[b]) {
-            const opt = document.createElement('option');
-            opt.value = `${a},${b}`;
-            opt.textContent = `${a} + ${b}`;
-            conditionSelect.appendChild(opt);
-          }
-        });
-      }
+      populateConditionOptions(conditionSelect);
       conditionSelect.addEventListener('change', () => applyConditionScales(conditionSelect.value));
       applyConditionScales('');
+    }
+
+    // Dual view: side-by-side hearts with independent Simulate, shared camera
+    const dualViewBtn = document.getElementById('dual-view-btn');
+    if (dualViewBtn) {
+      dualViewBtn.addEventListener('click', () => {
+        dualViewEnabled = !dualViewEnabled;
+        if (dualViewEnabled) createRightHeart(scale);
+        setDualViewUI(dualViewEnabled);
+        dualViewBtn.textContent = dualViewEnabled ? 'Single view' : 'Dual view';
+        dualViewBtn.classList.toggle('active', dualViewEnabled);
+        dualViewBtn.setAttribute('aria-pressed', dualViewEnabled);
+        if (sliceEnabled) applySliceToMeshes(true);
+        const w = container.clientWidth;
+        const h = container.clientHeight;
+        if (dualViewEnabled && cameraRight) {
+          camera.aspect = (w / 2) / h;
+          cameraRight.aspect = (w / 2) / h;
+          cameraRight.updateProjectionMatrix();
+        } else {
+          camera.aspect = w / h;
+        }
+        camera.updateProjectionMatrix();
+      });
     }
 
     const btn = document.getElementById('heartbeat-btn');
@@ -476,22 +576,54 @@ loader.load(
 window.addEventListener('resize', () => {
   const w = container.clientWidth;
   const h = container.clientHeight;
-  camera.aspect = w / h;
+  if (dualViewEnabled && cameraRight) {
+    camera.aspect = (w / 2) / h;
+    cameraRight.aspect = (w / 2) / h;
+    cameraRight.updateProjectionMatrix();
+  } else {
+    camera.aspect = w / h;
+  }
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
 });
 
 function animate() {
   requestAnimationFrame(animate);
+  const mult = getHeartbeatMultiplier();
   if (heartbeatEnabled) {
-    const mult = getHeartbeatMultiplier();
     pickableMeshes.forEach((m) => applyVertexPulse(m, mult));
+    if (dualViewEnabled && pickableMeshesRight.length) pickableMeshesRight.forEach((m) => applyVertexPulse(m, mult));
     pulseRestored = false;
   } else if (!pulseRestored) {
     pickableMeshes.forEach(restoreVertexPulse);
+    if (dualViewEnabled && pickableMeshesRight.length) pickableMeshesRight.forEach(restoreVertexPulse);
     pulseRestored = true;
   }
   controls.update();
-  renderer.render(scene, camera);
+  if (dualViewEnabled && sceneRight && cameraRight) {
+    cameraRight.position.copy(camera.position);
+    cameraRight.quaternion.copy(camera.quaternion);
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+    const half = Math.floor(w / 2);
+    renderer.autoClear = false;
+    renderer.clear();
+    // Left viewport: clip to left half
+    renderer.setViewport(0, 0, half, h);
+    renderer.setScissor(0, 0, half, h);
+    renderer.setScissorTest(true);
+    renderer.render(scene, camera);
+    // Right viewport: clip to right half
+    renderer.setViewport(half, 0, half, h);
+    renderer.setScissor(half, 0, half, h);
+    renderer.setScissorTest(true);
+    renderer.render(sceneRight, cameraRight);
+    // Reset
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, w, h);
+    renderer.autoClear = true;
+  } else {
+    renderer.render(scene, camera);
+  }
 }
 animate();
