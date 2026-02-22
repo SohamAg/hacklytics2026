@@ -7,3 +7,4 @@ cropped_data.zip
 .DS_Store
 *.obj
 *.glb
+*.csv
