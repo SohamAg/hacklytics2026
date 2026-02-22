@@ -74,7 +74,7 @@ def save_segmented_obj(filename, seg_data, spacing, label_info):
             centered_verts = (verts - center) * scale
 
             for vert in centered_verts:
-                f.write(f"v {vert[0]:.6f} {vert[1]:.6f} {-vert[2]:.6f}\n")
+                f.write(f"v {vert[0]:.6f} {vert[1]:.6f} {vert[2]:.6f}\n")
 
             for face in original_faces:
                 v1 = face[0] + vertex_offset + 1
