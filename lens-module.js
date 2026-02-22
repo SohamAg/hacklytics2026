@@ -388,37 +388,51 @@ Provide a 2 sentence analysis about what these structures are and their clinical
       </div>
     `;
     
-    popup.querySelector('.popup-close').addEventListener('click', () => popup.remove());
-    popup.style.left = (cursorX + 15) + 'px';
-    popup.style.top = (cursorY + 15) + 'px';
+    const closeBtn = popup.querySelector('.popup-close');
+    closeBtn.addEventListener('click', () => popup.remove());
     
-    // Add drag functionality
-    const header = popup.querySelector('.popup-header');
-    let offsetX = 0;
-    let offsetY = 0;
-    let isDragging = false;
-    
-    header.addEventListener('mousedown', (e) => {
-      isDragging = true;
-      const rect = popup.getBoundingClientRect();
-      offsetX = e.clientX - rect.left;
-      offsetY = e.clientY - rect.top;
-      header.style.cursor = 'grabbing';
-    });
-    
-    document.addEventListener('mousemove', (e) => {
-      if (!isDragging) return;
-      popup.style.left = (e.clientX - offsetX) + 'px';
-      popup.style.top = (e.clientY - offsetY) + 'px';
-    });
-    
-    document.addEventListener('mouseup', () => {
-      isDragging = false;
-      header.style.cursor = 'grab';
-    });
-    
-    header.style.cursor = 'grab';
+    // Position near cursor with some offset
+    const offsetX = 15;
+    const offsetY = 15;
+    popup.style.left = (cursorX + offsetX) + 'px';
+    popup.style.top = (cursorY + offsetY) + 'px';
     
     return popup;
+  }
+
+  makePopupDraggable(popup) {
+    const header = popup.querySelector('.popup-header');
+    let isDragging = false;
+    let dragOffsetX = 0;
+    let dragOffsetY = 0;
+
+    header.style.cursor = 'grab';
+    header.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      header.style.cursor = 'grabbing';
+      
+      const popupRect = popup.getBoundingClientRect();
+      dragOffsetX = e.clientX - popupRect.left;
+      dragOffsetY = e.clientY - popupRect.top;
+      
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      
+      const newX = e.clientX - dragOffsetX;
+      const newY = e.clientY - dragOffsetY;
+      
+      popup.style.left = newX + 'px';
+      popup.style.top = newY + 'px';
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        header.style.cursor = 'grab';
+      }
+    });
   }
 }
