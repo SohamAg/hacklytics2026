@@ -421,6 +421,45 @@ Keep the response concise and educational.`;
     popup.style.left = (cursorX + offsetX) + 'px';
     popup.style.top = (cursorY + offsetY) + 'px';
     
+    // Make popup draggable
+    this.makePopupDraggable(popup);
+    
     return popup;
+  }
+
+  makePopupDraggable(popup) {
+    const header = popup.querySelector('.popup-header');
+    let isDragging = false;
+    let dragOffsetX = 0;
+    let dragOffsetY = 0;
+
+    header.style.cursor = 'grab';
+    header.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      header.style.cursor = 'grabbing';
+      
+      const popupRect = popup.getBoundingClientRect();
+      dragOffsetX = e.clientX - popupRect.left;
+      dragOffsetY = e.clientY - popupRect.top;
+      
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      
+      const newX = e.clientX - dragOffsetX;
+      const newY = e.clientY - dragOffsetY;
+      
+      popup.style.left = newX + 'px';
+      popup.style.top = newY + 'px';
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        header.style.cursor = 'grab';
+      }
+    });
   }
 }

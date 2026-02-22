@@ -281,6 +281,15 @@
       position: sticky;
       top: 0;
       background: rgba(30, 30, 36, 0.98);
+      cursor: grab;
+      user-select: none;
+      transition: background-color 0.2s ease;
+    }
+    .popup-header:active {
+      cursor: grabbing;
+    }
+    .popup-header:hover {
+      background: rgba(30, 30, 36, 1);
     }
     .popup-header h3 {
       font-size: 0.95rem;
