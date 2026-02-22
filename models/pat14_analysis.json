@@ -1,0 +1,58 @@
+{
+  "patient_id": 14,
+  "ground_truth": "Unknown",
+  "obj_path": "models/pat14.obj",
+  "features": {
+    "Label_1_vol_ml": 122.5492,
+    "Label_2_vol_ml": 101.6083,
+    "Label_3_vol_ml": 48.5486,
+    "Label_4_vol_ml": 58.2169,
+    "Label_5_vol_ml": 71.4892,
+    "Label_6_vol_ml": 41.6184,
+    "Label_7_vol_ml": 8.179,
+    "Label_8_vol_ml": 10.672,
+    "Total_heart_vol": 462.8816
+  },
+  "mesh_scales": {
+    "LV": 1.0678,
+    "RV": 0.987,
+    "LA": 1.0461,
+    "RA": 0.9741,
+    "Aorta": 1.0749,
+    "PA": 1.1535,
+    "SVC": 0.9819,
+    "IVC": 0.9331
+  },
+  "pca": {
+    "pc1": 1.0017,
+    "pc2": -0.556
+  },
+  "severity": 0.4512,
+  "nearest": [
+    {
+      "patient_id": 0,
+      "category": "moderate",
+      "distance": 0.19435628524603002
+    },
+    {
+      "patient_id": 7,
+      "category": "moderate",
+      "distance": 0.25725970496017064
+    },
+    {
+      "patient_id": 26,
+      "category": "mild",
+      "distance": 0.3564552316466481
+    }
+  ],
+  "condition_scores": {
+    "Normal": 0.6692,
+    "CMRArtifactAO": 0.4686,
+    "LLoopTGA": 0.4542,
+    "Marfan": 0.4396,
+    "MildModerateDilation": 0.4359,
+    "CMRArtifactPA": 0.4201,
+    "Dextrocardia": 0.3597,
+    "VSD": 0.3577
+  }
+}

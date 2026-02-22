@@ -1,0 +1,58 @@
+{
+  "patient_id": 1,
+  "ground_truth": "Unknown",
+  "obj_path": "models/pat1.obj",
+  "features": {
+    "Label_1_vol_ml": 78.1929,
+    "Label_2_vol_ml": 84.9031,
+    "Label_3_vol_ml": 43.7925,
+    "Label_4_vol_ml": 35.1929,
+    "Label_5_vol_ml": 59.5105,
+    "Label_6_vol_ml": 27.3552,
+    "Label_7_vol_ml": 7.1489,
+    "Label_8_vol_ml": 10.1086,
+    "Total_heart_vol": 346.2047
+  },
+  "mesh_scales": {
+    "LV": 0.9193,
+    "RV": 0.9296,
+    "LA": 1.0107,
+    "RA": 0.8236,
+    "Aorta": 1.0111,
+    "PA": 1.0029,
+    "SVC": 0.9388,
+    "IVC": 0.9164
+  },
+  "pca": {
+    "pc1": -0.0067,
+    "pc2": -0.3046
+  },
+  "severity": 0.3287,
+  "nearest": [
+    {
+      "patient_id": 8,
+      "category": "mild",
+      "distance": 0.33141368814619526
+    },
+    {
+      "patient_id": 34,
+      "category": "severe",
+      "distance": 0.5400414511179029
+    },
+    {
+      "patient_id": 47,
+      "category": "severe",
+      "distance": 0.6978731659939232
+    }
+  ],
+  "condition_scores": {
+    "CMRArtifactPA": 0.5733,
+    "CMRArtifactAO": 0.5248,
+    "Normal": 0.5196,
+    "VSD": 0.5114,
+    "ASD": 0.4915,
+    "InvertedVentricles": 0.4904,
+    "LLoopTGA": 0.4706,
+    "Dextrocardia": 0.4673
+  }
+}

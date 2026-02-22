@@ -19,7 +19,7 @@
       "Label_5_vol_ml": 1.3138820544945757,
       "Label_6_vol_ml": 1.3952119851359186,
       "Label_7_vol_ml": 1.1537308406847042,
-      "Label_8_vol_ml": 0.9436840639725653,
+      "Label_8_vol_ml": 0.9436840639725655,
       "Total_heart_vol": 1.084830515014649
     },
     "MildModerateDilation": {
@@ -100,7 +100,7 @@
       "Total_heart_vol": 0.7612109812302724
     },
     "SevereDilation": {
-      "Label_1_vol_ml": 1.717177425047162,
+      "Label_1_vol_ml": 1.7171774250471619,
       "Label_2_vol_ml": 1.505714900974112,
       "Label_3_vol_ml": 2.1169591651302837,
       "Label_4_vol_ml": 2.742712703090821,
@@ -127,7 +127,7 @@
       "Label_3_vol_ml": 1.4953173648149336,
       "Label_4_vol_ml": 0.3,
       "Label_5_vol_ml": 0.7393687001047651,
-      "Label_6_vol_ml": 0.6360265024274357,
+      "Label_6_vol_ml": 0.6360265024274356,
       "Label_7_vol_ml": 0.5887619375013105,
       "Label_8_vol_ml": 1.4757186502270454,
       "Total_heart_vol": 0.6361181373767558
@@ -140,7 +140,7 @@
       "Label_5_vol_ml": 0.5508827842407412,
       "Label_6_vol_ml": 0.3,
       "Label_7_vol_ml": 0.4187614941931002,
-      "Label_8_vol_ml": 0.9318902477644444,
+      "Label_8_vol_ml": 0.9318902477644445,
       "Total_heart_vol": 0.45676725533686247
     },
     "InvertedVentricles": {
@@ -170,7 +170,7 @@
       "Label_2_vol_ml": 0.3429207908708823,
       "Label_3_vol_ml": 1.3375403386180988,
       "Label_4_vol_ml": 0.3,
-      "Label_5_vol_ml": 0.6234881860856502,
+      "Label_5_vol_ml": 0.62348818608565,
       "Label_6_vol_ml": 0.3,
       "Label_7_vol_ml": 0.5121006122648473,
       "Label_8_vol_ml": 1.1470723001696035,
@@ -217,7 +217,7 @@
       "Label_5_vol_ml": 2.010025745459224,
       "Label_6_vol_ml": 2.0076342291391236,
       "Label_7_vol_ml": 3.0,
-      "Label_8_vol_ml": 1.9408151853442364,
+      "Label_8_vol_ml": 1.9408151853442366,
       "Total_heart_vol": 1.4973996348239413
     },
     "SingleVentricle": {
@@ -258,7 +258,7 @@
       "Label_2_vol_ml": 0.4348070033616066,
       "Label_3_vol_ml": 1.4783102898840708,
       "Label_4_vol_ml": 0.3,
-      "Label_5_vol_ml": 0.5642226548465725,
+      "Label_5_vol_ml": 0.5642226548465724,
       "Label_6_vol_ml": 0.3,
       "Label_7_vol_ml": 0.5221324846879419,
       "Label_8_vol_ml": 0.9701585074434042,
@@ -273,7 +273,7 @@
       "Label_6_vol_ml": 0.30221222112500035,
       "Label_7_vol_ml": 0.4673634135188668,
       "Label_8_vol_ml": 1.1885905557535001,
-      "Total_heart_vol": 0.5199253719494651
+      "Total_heart_vol": 0.5199253719494652
     },
     "Fontan": {
       "Label_1_vol_ml": 0.7353911091564772,
@@ -281,7 +281,7 @@
       "Label_3_vol_ml": 1.6967845994186552,
       "Label_4_vol_ml": 0.3,
       "Label_5_vol_ml": 1.3799520601062438,
-      "Label_6_vol_ml": 0.4891954612951349,
+      "Label_6_vol_ml": 0.48919546129513486,
       "Label_7_vol_ml": 0.662722633912971,
       "Label_8_vol_ml": 2.5625838072311153,
       "Total_heart_vol": 0.8000287167860958
@@ -291,10 +291,10 @@
       "Label_2_vol_ml": 0.4335132612451823,
       "Label_3_vol_ml": 1.4334963381783132,
       "Label_4_vol_ml": 0.3,
-      "Label_5_vol_ml": 0.5960107717950387,
+      "Label_5_vol_ml": 0.5960107717950385,
       "Label_6_vol_ml": 0.3,
       "Label_7_vol_ml": 0.5259230882987874,
-      "Label_8_vol_ml": 1.0191702208743048,
+      "Label_8_vol_ml": 1.019170220874305,
       "Total_heart_vol": 0.5142307396225498
     },
     "SuperoinferiorVentricles": {
@@ -306,7 +306,7 @@
       "Label_6_vol_ml": 0.34345924698879277,
       "Label_7_vol_ml": 0.30929290934349135,
       "Label_8_vol_ml": 0.4236294268823043,
-      "Total_heart_vol": 0.4150197144610478
+      "Total_heart_vol": 0.41501971446104774
     },
     "PAAtresiaOrMPAStump": {
       "Label_1_vol_ml": 0.323464237920273,
@@ -322,7 +322,7 @@
     "PABanding": {
       "Label_1_vol_ml": 0.3250255813306173,
       "Label_2_vol_ml": 0.30223519166302654,
-      "Label_3_vol_ml": 0.48253069365557855,
+      "Label_3_vol_ml": 0.4825306936555785,
       "Label_4_vol_ml": 0.4257026519847086,
       "Label_5_vol_ml": 0.3,
       "Label_6_vol_ml": 0.43018637241615265,
@@ -349,11 +349,11 @@
       "Label_5_vol_ml": 1.8370188119855353,
       "Label_6_vol_ml": 2.0538986270291164,
       "Label_7_vol_ml": 1.4099489084925443,
-      "Label_8_vol_ml": 0.8498241705935079,
+      "Label_8_vol_ml": 0.849824170593508,
       "Total_heart_vol": 1.2262147067057314
     },
     "CMRArtifactAO": {
-      "Label_1_vol_ml": 0.7148816714942392,
+      "Label_1_vol_ml": 0.714881671494239,
       "Label_2_vol_ml": 0.6528249975411469,
       "Label_3_vol_ml": 0.9905113989659642,
       "Label_4_vol_ml": 1.3581311148976205,
@@ -364,7 +364,7 @@
       "Total_heart_vol": 0.8421728061715424
     },
     "CMRArtifactPA": {
-      "Label_1_vol_ml": 0.6172513440364916,
+      "Label_1_vol_ml": 0.6172513440364914,
       "Label_2_vol_ml": 0.43087669627814307,
       "Label_3_vol_ml": 1.082066376087292,
       "Label_4_vol_ml": 0.5031488587529009,
@@ -415,9 +415,9 @@
     "2": "RV",
     "3": "LA",
     "4": "RA",
-    "5": "AO",
+    "5": "Aorta",
     "6": "PA",
-    "7": "PV",
-    "8": "SVC"
+    "7": "SVC",
+    "8": "IVC"
   }
 }

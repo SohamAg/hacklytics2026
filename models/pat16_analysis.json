@@ -1,0 +1,58 @@
+{
+  "patient_id": 16,
+  "ground_truth": "Unknown",
+  "obj_path": "models/pat16.obj",
+  "features": {
+    "Label_1_vol_ml": 13.1207,
+    "Label_2_vol_ml": 152.9506,
+    "Label_3_vol_ml": 90.5134,
+    "Label_4_vol_ml": 0.0,
+    "Label_5_vol_ml": 46.7245,
+    "Label_6_vol_ml": 13.3805,
+    "Label_7_vol_ml": 3.5303,
+    "Label_8_vol_ml": 23.5661,
+    "Total_heart_vol": 343.7862
+  },
+  "mesh_scales": {
+    "LV": 0.5848,
+    "RV": 1.1311,
+    "LA": 1.2875,
+    "RA": 0.5848,
+    "Aorta": 0.9328,
+    "PA": 0.7902,
+    "SVC": 0.742,
+    "IVC": 1.2151
+  },
+  "pca": {
+    "pc1": 0.1547,
+    "pc2": 0.6007
+  },
+  "severity": 0.3483,
+  "nearest": [
+    {
+      "patient_id": 32,
+      "category": "severe",
+      "distance": 0.8489421411053752
+    },
+    {
+      "patient_id": 47,
+      "category": "severe",
+      "distance": 0.8623966312194317
+    },
+    {
+      "patient_id": 51,
+      "category": "severe",
+      "distance": 0.950169721414347
+    }
+  ],
+  "condition_scores": {
+    "Dextrocardia": 0.4362,
+    "LeftCentralSVC": 0.4181,
+    "Heterotaxy": 0.3918,
+    "CommonAtrium": 0.3903,
+    "LeftCentralIVC": 0.3836,
+    "InvertedAtria": 0.3752,
+    "Fontan": 0.3736,
+    "TortuousVessels": 0.3703
+  }
+}
