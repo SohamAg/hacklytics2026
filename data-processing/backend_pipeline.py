@@ -1,4 +1,3 @@
-import os
 from typing import List, Dict, Any
 
 # --- Condition system ---
@@ -13,27 +12,9 @@ from morphology_engine import MorphologyEngine
 
 
 class HeartBackend:
-    """
-    Full backend orchestration layer.
-    Connects:
-        condition estimation
-        PCA projection
-        similarity search
-        severity scoring
-        mesh scaling
-    """
 
     def __init__(self, csv_path: str):
-        # 1️⃣ Load dataset + compute condition effects
-        (
-            self.df,
-            self.reference,
-            self.condition_effects,
-            self.condition_counts,
-            self.condition_multipliers
-        ) = run_pipeline(csv_path)
-
-        # 2️⃣ Load PCA + scaler + dataset embeddings
+        _, self.reference, _, _, self.condition_multipliers = run_pipeline(csv_path)
         self.morph_engine = MorphologyEngine()
 
     # ---------------------------------------------------------
@@ -46,10 +27,6 @@ class HeartBackend:
     ) -> Dict[str, Any]:
         """
         Main function called by frontend.
-
-        Input:
-            selected_conditions: list of condition names
-
         Output:
             dict with:
                 - estimated_features
@@ -68,7 +45,7 @@ class HeartBackend:
 
         # Step 2: PCA + similarity + severity
         analysis = self.morph_engine.analyze(estimated)
-
+ 
         # Step 3: Mesh scaling factors
         scales = scaling_factors_for_viewer(
             estimated,

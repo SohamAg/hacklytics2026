@@ -2,5 +2,7 @@ orig/
 cropped/
 tempCodeRunnerFile.*
 heart_models/
-output/pca_model.pkl
-output/scaler_model.pkl
+../output/pca_model.pkl
+../output/scaler_model.pkl
+../models/pca_model.pkl
+../models/scaler_model.pkl

@@ -2,13 +2,7 @@ import numpy as np
 import pandas as pd
 import joblib
 
-FEATURE_ORDER = [
-    "Label_1_vol_ml",
-    "Label_2_vol_ml",
-    "Label_4_vol_ml",
-    "Label_6_vol_ml",
-    "Total_heart_vol"
-]
+from condition_analysis import FEATURE_ORDER
 
 class MorphologyEngine:
     def __init__(self):
