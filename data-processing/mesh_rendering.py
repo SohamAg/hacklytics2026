@@ -6,11 +6,27 @@ Run once to generate mesh assets:
 """
 
 import os
+from pathlib import Path
 
 import nibabel as nib
 import numpy as np
 import pyvista as pv
 from skimage import measure
+
+PROJECT_MARKERS = [
+    Path('heart_models'),
+    Path('data-processing'),
+    Path('data-processing'),
+]
+
+def find_project_root(start: Path) -> Path:
+    cur = start.resolve()
+    for parent in [cur] + list(cur.parents):
+        if all((parent / m).exists() for m in PROJECT_MARKERS):
+            return parent
+    raise FileNotFoundError('Could not locate project root from ' + str(start))
+
+PROJECT_ROOT = find_project_root(Path.cwd())
 
 
 LABEL_INFO = {
@@ -174,27 +190,32 @@ def render_polished_heart(nifti_path):
         plotter.render()
 
     plotter.enable_mesh_picking(callback=on_pick, use_actor=True)
-    save_segmented_obj("heart_model.obj", seg_data, seg.header.get_zooms(), LABEL_INFO)
+    output_path = PROJECT_ROOT / 'heart_models' / 'heart_model.obj'
+    save_segmented_obj(str(output_path), seg_data, seg.header.get_zooms(), LABEL_INFO)
     plotter.show()
 
 
-def batch_process_patients(start_patient=0, end_patient=58, output_folder="heart_models/patient_models"):
+def batch_process_patients(start_patient=0, end_patient=58, output_folder=None):
     """Generate OBJ files for multiple patients."""
 
-    os.makedirs(output_folder, exist_ok=True)
+    if output_folder is None:
+        output_folder = PROJECT_ROOT / 'heart_models' / 'patient_models'
+    else:
+        output_folder = Path(output_folder)
+    output_folder.mkdir(parents=True, exist_ok=True)
 
     for patient_id in range(start_patient, end_patient + 1):
-        nifti_path = f"cropped/cropped/pat{patient_id}_cropped_seg.nii.gz"
-        output_path = os.path.join(output_folder, f"heart_model_pat{patient_id}.obj")
+        nifti_path = PROJECT_ROOT / 'data-processing' / 'cropped_data' / 'cropped' / f'pat{patient_id}_cropped_seg.nii.gz'
+        output_path = output_folder / f'heart_model_pat{patient_id}.obj'
 
-        if not os.path.exists(nifti_path):
+        if not nifti_path.exists():
             print(f"Skipping patient {patient_id}: {nifti_path} not found")
             continue
 
         try:
             print(f"Processing patient {patient_id}...")
             seg = nib.load(nifti_path)
-            save_segmented_obj(output_path, seg.get_fdata(), seg.header.get_zooms(), LABEL_INFO)
+            save_segmented_obj(str(output_path), seg.get_fdata(), seg.header.get_zooms(), LABEL_INFO)
             print(f"Patient {patient_id} saved to {output_path}")
         except Exception as e:
             print(f"Error processing patient {patient_id}: {e}")

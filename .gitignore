@@ -2,7 +2,7 @@
 healthy.OBJ
 cropped_norm/
 cropped_data/
-cropped_norm.zip
+cropped_norm_data.zip
 cropped_data.zip
 .DS_Store
 *.obj
