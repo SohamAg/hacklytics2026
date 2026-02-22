@@ -178,7 +178,7 @@ def render_polished_heart(nifti_path):
     plotter.show()
 
 
-def batch_process_patients(start_patient=0, end_patient=58, output_folder="heart_models"):
+def batch_process_patients(start_patient=0, end_patient=58, output_folder="heart_models/patient_models"):
     """Generate OBJ files for multiple patients."""
 
     os.makedirs(output_folder, exist_ok=True)
