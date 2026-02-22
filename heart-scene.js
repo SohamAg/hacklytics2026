@@ -87,6 +87,7 @@ let conditionData = null;
 let pcaLandscape = null;
 let currentTab = 'simulate';
 let currentScanAnalysis = null; // most-recently displayed patient analysis JSON
+let uploadedPCAPoints = [];     // accumulates {pc1, pc2, patient_id, ground_truth} across uploads
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const BEAT_PERIOD = 0.9;
@@ -804,19 +805,115 @@ function renderPCAScatter(patPCA) {
   const { bounds, patients } = pcaLandscape;
   const toX = pc1 => PAD + (pc1 - bounds.pc1_min) / (bounds.pc1_max - bounds.pc1_min) * (W - 2*PAD);
   const toY = pc2 => H - PAD - (pc2 - bounds.pc2_min) / (bounds.pc2_max - bounds.pc2_min) * (H - 2*PAD);
+
+  // Training set dots
   const dots = patients.map(p => {
     const c = CATEGORY_COLORS[p.category] || CATEGORY_COLORS._default;
     return `<circle cx="${toX(p.pc1).toFixed(1)}" cy="${toY(p.pc2).toFixed(1)}" r="2.8" fill="${c}" opacity="0.55"/>`;
   }).join('');
+
+  // Previously uploaded patients (smaller amber dots with labels)
+  const prevDots = uploadedPCAPoints
+    .filter(p => p.pc1 !== patPCA.pc1 || p.pc2 !== patPCA.pc2)
+    .map(p => {
+      const px = toX(p.pc1).toFixed(1), py = toY(p.pc2).toFixed(1);
+      const label = p.patient_id != null ? `P${p.patient_id}` : '?';
+      return `<circle cx="${px}" cy="${py}" r="4" fill="#f59e0b" stroke="#fff" stroke-width="1" opacity="0.5"/>
+              <text x="${px}" y="${(parseFloat(py)-6).toFixed(1)}" text-anchor="middle" font-size="6" fill="#f59e0b" opacity="0.7">${label}</text>`;
+    }).join('');
+
+  // Current patient (bright highlighted dot)
   const px = toX(patPCA.pc1).toFixed(1), py = toY(patPCA.pc2).toFixed(1);
-  const highlight = `<circle cx="${px}" cy="${py}" r="5.5" fill="#f59e0b" stroke="#fff" stroke-width="1.8"/>`;
+  const highlight = `<circle cx="${px}" cy="${py}" r="5.5" fill="#f59e0b" stroke="#fff" stroke-width="1.8"/>
+    <text x="${px}" y="${(parseFloat(py)-8).toFixed(1)}" text-anchor="middle" font-size="7" fill="#fff" font-weight="bold">▲ Current</text>`;
+
   const axes = `
     <line x1="${PAD}" y1="${H-PAD}" x2="${W-PAD}" y2="${H-PAD}" stroke="#333" stroke-width="0.5"/>
     <line x1="${PAD}" y1="${PAD}" x2="${PAD}" y2="${H-PAD}" stroke="#333" stroke-width="0.5"/>
     <text x="${W/2}" y="${H-2}" text-anchor="middle" font-size="8" fill="#444" font-family="sans-serif">PC1</text>
     <text x="4" y="${H/2}" text-anchor="middle" font-size="8" fill="#444" font-family="sans-serif" transform="rotate(-90,4,${H/2})">PC2</text>`;
-  svgEl.innerHTML = axes + dots + highlight;
+  svgEl.innerHTML = axes + dots + prevDots + highlight;
 }
+
+function renderPCAScatterModal() {
+  const svgEl = document.getElementById('pca-modal-svg');
+  const legendEl = document.getElementById('pca-modal-legend');
+  if (!svgEl || !pcaLandscape) return;
+
+  const W = 820, H = 520, PAD = 36;
+  const { bounds, patients } = pcaLandscape;
+  const toX = pc1 => PAD + (pc1 - bounds.pc1_min) / (bounds.pc1_max - bounds.pc1_min) * (W - 2*PAD);
+  const toY = pc2 => H - PAD - (pc2 - bounds.pc2_min) / (bounds.pc2_max - bounds.pc2_min) * (H - 2*PAD);
+
+  // Grid lines
+  const gridLines = [];
+  for (let i = 0; i <= 4; i++) {
+    const gx = PAD + (i / 4) * (W - 2*PAD);
+    const gy = PAD + (i / 4) * (H - 2*PAD);
+    gridLines.push(`<line x1="${gx}" y1="${PAD}" x2="${gx}" y2="${H-PAD}" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>`);
+    gridLines.push(`<line x1="${PAD}" y1="${gy}" x2="${W-PAD}" y2="${gy}" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>`);
+  }
+
+  // Training set dots — grouped and labelled by category
+  const catGroups = {};
+  patients.forEach(p => {
+    if (!catGroups[p.category]) catGroups[p.category] = [];
+    catGroups[p.category].push(p);
+  });
+  const dots = patients.map(p => {
+    const c = CATEGORY_COLORS[p.category] || CATEGORY_COLORS._default;
+    return `<circle cx="${toX(p.pc1).toFixed(1)}" cy="${toY(p.pc2).toFixed(1)}" r="4.5" fill="${c}" opacity="0.6">
+      <title>Patient ${p.patient_id} · ${p.category}</title></circle>`;
+  }).join('');
+
+  // Previously uploaded patients
+  const prevDots = uploadedPCAPoints.map((p, i) => {
+    const isCurrent = currentScanAnalysis && p.patient_id === currentScanAnalysis.patient_id;
+    const r = isCurrent ? 9 : 6;
+    const opacity = isCurrent ? '1' : '0.6';
+    const stroke = isCurrent ? 'stroke="#fff" stroke-width="2"' : 'stroke="rgba(255,255,255,0.5)" stroke-width="1"';
+    const label = p.patient_id != null ? `P${p.patient_id}` : `Upload ${i+1}`;
+    return `<circle cx="${toX(p.pc1).toFixed(1)}" cy="${toY(p.pc2).toFixed(1)}" r="${r}" fill="#f59e0b" ${stroke} opacity="${opacity}">
+        <title>${label} · ${p.ground_truth || '?'}</title></circle>
+      <text x="${toX(p.pc1).toFixed(1)}" y="${(toY(p.pc2)-r-3).toFixed(1)}" text-anchor="middle" font-size="9" fill="#f59e0b" font-family="Outfit,sans-serif" font-weight="600">${label}</text>`;
+  }).join('');
+
+  // Axes and labels
+  const axes = `
+    <line x1="${PAD}" y1="${H-PAD}" x2="${W-PAD}" y2="${H-PAD}" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+    <line x1="${PAD}" y1="${PAD}" x2="${PAD}" y2="${H-PAD}" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+    <text x="${W/2}" y="${H-6}" text-anchor="middle" font-size="11" fill="#666" font-family="Outfit,sans-serif">PC1 — Size / Volume Axis</text>
+    <text x="12" y="${H/2}" text-anchor="middle" font-size="11" fill="#666" font-family="Outfit,sans-serif" transform="rotate(-90,12,${H/2})">PC2 — Shape Axis</text>`;
+
+  svgEl.innerHTML = gridLines.join('') + axes + dots + prevDots;
+
+  // Legend
+  const usedCats = [...new Set(patients.map(p => p.category))];
+  legendEl.innerHTML = usedCats.map(cat => {
+    const c = CATEGORY_COLORS[cat] || CATEGORY_COLORS._default;
+    return `<span style="display:flex;align-items:center;gap:0.3rem;">
+      <span style="width:9px;height:9px;border-radius:50%;background:${c};display:inline-block;flex-shrink:0;"></span>${cat}</span>`;
+  }).join('') + `<span style="display:flex;align-items:center;gap:0.3rem;margin-left:0.5rem;">
+    <span style="width:9px;height:9px;border-radius:50%;background:#f59e0b;display:inline-block;flex-shrink:0;"></span>Uploaded patient</span>`;
+}
+
+// PCA modal wiring (runs after DOM ready)
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('pca-scatter')?.addEventListener('click', () => {
+    renderPCAScatterModal();
+    document.getElementById('pca-modal')?.classList.add('open');
+  });
+  document.getElementById('pca-modal-close')?.addEventListener('click', () => {
+    document.getElementById('pca-modal')?.classList.remove('open');
+  });
+  document.getElementById('pca-modal')?.addEventListener('click', e => {
+    if (e.target === document.getElementById('pca-modal'))
+      document.getElementById('pca-modal').classList.remove('open');
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') document.getElementById('pca-modal')?.classList.remove('open');
+  });
+});
 
 function renderNearestPatients(nearest) {
   const el = document.getElementById('nearest-patients-list');
@@ -832,6 +929,16 @@ function renderNearestPatients(nearest) {
 
 function displayScanAnalysis(analysis) {
   currentScanAnalysis = analysis;
+  // Accumulate uploaded patients in PCA space (deduplicate by patient_id)
+  if (analysis.pca) {
+    const exists = uploadedPCAPoints.some(p => p.patient_id != null && p.patient_id === analysis.patient_id);
+    if (!exists) {
+      uploadedPCAPoints.push({
+        pc1: analysis.pca.pc1, pc2: analysis.pca.pc2,
+        patient_id: analysis.patient_id, ground_truth: analysis.ground_truth,
+      });
+    }
+  }
   const resultsEl = document.getElementById('scan-results');
   if (resultsEl) resultsEl.classList.remove('hidden');
   const pidEl = document.getElementById('scan-patient-id');
@@ -942,26 +1049,59 @@ function resetRightToSimulate() {
   document.getElementById('right-panel-label').textContent = condSel?.value || 'Baseline';
 }
 
+// ── Backend server URL (change port if needed) ────────────────────────────────
+const SERVER_URL = 'http://localhost:5000';
+
 // ── File upload handler ───────────────────────────────────────────────────────
 function handleFileUpload(file) {
   if (!file) return;
-  const match = file.name.match(/pat(\d+)/i);
-  const pid = match ? parseInt(match[1]) : null;
-  if (!pid) {
-    setScanStatus(`Could not detect patient ID from "${file.name}". Expected format: pat{N}_cropped_seg.nii.gz`, true);
-    return;
-  }
-  setScanStatus(`Loading patient ${pid} analysis…`);
+  setScanStatus('Uploading scan…');
   document.getElementById('scan-results')?.classList.add('hidden');
-  fetch(`./models/pat${pid}_analysis.json`)
-    .then(r => r.ok ? r.json() : Promise.reject(`No pre-computed analysis for patient ${pid}. Run generate_frontend_assets.py.`))
-    .then(analysis => {
-      loadScanOBJ(`./models/pat${pid}.obj`, analysis.mesh_scales, () => {
-        displayScanAnalysis(analysis);
-        setScanStatus('');
-      });
+
+  // 1. Try live server
+  const form = new FormData();
+  form.append('file', file);
+
+  fetch(`${SERVER_URL}/api/upload`, { method: 'POST', body: form })
+    .then(r => {
+      if (!r.ok) return r.json().then(e => Promise.reject(e.error || `Server error ${r.status}`));
+      return r.json();
     })
-    .catch(err => setScanStatus(typeof err === 'string' ? err : `Error: ${err.message}`, true));
+    .then(analysis => {
+      setScanStatus('Rendering mesh…');
+      const objUrl = analysis.obj_url
+        ? `${SERVER_URL}${analysis.obj_url}`
+        : null;
+      if (objUrl) {
+        loadScanOBJ(objUrl, analysis.mesh_scales, () => {
+          displayScanAnalysis(analysis);
+          setScanStatus('');
+        });
+      } else {
+        displayScanAnalysis(analysis);
+        setScanStatus('(No OBJ generated — mesh unchanged)', false);
+      }
+    })
+    .catch(serverErr => {
+      // 2. Fall back to pre-computed static assets for demo patients
+      console.warn('[HeartScape] Server unavailable, trying static assets:', serverErr);
+      const match = file.name.match(/pat(\d+)/i);
+      const pid = match ? parseInt(match[1]) : null;
+      if (!pid) {
+        setScanStatus(`Server offline and could not detect patient ID from "${file.name}".`, true);
+        return;
+      }
+      setScanStatus(`Server offline — loading pre-computed data for patient ${pid}…`);
+      fetch(`./models/pat${pid}_analysis.json`)
+        .then(r => r.ok ? r.json() : Promise.reject(`No pre-computed analysis for patient ${pid}. Start the server or run generate_frontend_assets.py.`))
+        .then(analysis => {
+          loadScanOBJ(`./models/pat${pid}.obj`, analysis.mesh_scales, () => {
+            displayScanAnalysis(analysis);
+            setScanStatus('(Demo mode — using pre-computed data)', false);
+          });
+        })
+        .catch(err => setScanStatus(typeof err === 'string' ? err : `Error: ${err.message}`, true));
+    });
 }
 
 // ── Heatmap overlay (OBJ with vertex colors; mesh or point cloud) ───────────────
