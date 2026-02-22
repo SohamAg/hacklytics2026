@@ -405,8 +405,35 @@
     /* PCA scatter */
     #pca-scatter {
       display: block; width: 100%; border-radius: 6px;
-      background: rgba(0,0,0,0.25);
+      background: rgba(0,0,0,0.25); cursor: zoom-in;
+      transition: opacity 0.15s;
     }
+    #pca-scatter:hover { opacity: 0.85; }
+    .pca-expand-hint { font-size: 0.6rem; color: #444; text-align: right; margin-top: 0.15rem; }
+
+    /* PCA modal */
+    #pca-modal {
+      display: none; position: fixed; inset: 0; z-index: 500;
+      background: rgba(0,0,0,0.78); align-items: center; justify-content: center;
+    }
+    #pca-modal.open { display: flex; }
+    #pca-modal-inner {
+      background: rgba(16,16,22,0.98); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px; padding: 1.2rem 1.4rem; max-width: 92vw; max-height: 90vh;
+      display: flex; flex-direction: column; gap: 0.6rem; box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+    }
+    #pca-modal-header {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 0.75rem; font-weight: 700; color: #93c5fd; font-family: 'Outfit', sans-serif;
+    }
+    #pca-modal-close {
+      background: none; border: none; color: #555; font-size: 1.2rem; cursor: pointer;
+      width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+      border-radius: 6px; transition: background 0.15s, color 0.15s;
+    }
+    #pca-modal-close:hover { background: rgba(255,255,255,0.1); color: #fff; }
+    #pca-modal-svg { display: block; width: min(76vw, 820px); height: min(60vh, 520px); border-radius: 8px; background: rgba(0,0,0,0.3); }
+    #pca-modal-legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; font-size: 0.65rem; color: #666; font-family: 'Outfit', sans-serif; }
     .pca-legend {
       display: flex; align-items: center; gap: 0.3rem;
       font-size: 0.6rem; color: #555; margin-top: 0.28rem;
@@ -520,7 +547,7 @@
               <span>Edit / Annotate</span>
               <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 4l4 4 4-4"/></svg>
             </button>
-          </div><!-- /canvas-top-row -->
+          </div>
           <div class="annotation-panel" id="annotation-panel" role="menu">
             <div class="annotation-panel-header">Mark on heart</div>
             <div class="annotation-section">
@@ -664,7 +691,8 @@
 
             <div class="panel-section">
               <div class="panel-section-title">PCA Morphology Position</div>
-              <svg id="pca-scatter" viewBox="0 0 260 140" height="140" width="100%"></svg>
+              <svg id="pca-scatter" viewBox="0 0 260 140" height="140" width="100%" role="button" aria-label="Expand PCA chart"></svg>
+              <div class="pca-expand-hint">click to expand ↗</div>
               <div class="pca-legend">
                 <span class="pca-legend-dot" style="background:#f59e0b;"></span>This patient&nbsp;
                 <span class="pca-legend-dot" style="background:#6b7280;margin-left:0.3rem;"></span>Training set
@@ -684,6 +712,18 @@
         </div>
       </aside>
     </main>
+  </div>
+
+  <!-- PCA expanded modal -->
+  <div id="pca-modal" role="dialog" aria-modal="true" aria-label="PCA Morphology Landscape">
+    <div id="pca-modal-inner">
+      <div id="pca-modal-header">
+        <span>PCA Morphology Landscape — All Patients</span>
+        <button id="pca-modal-close" aria-label="Close">&#x2715;</button>
+      </div>
+      <svg id="pca-modal-svg" viewBox="0 0 820 520"></svg>
+      <div id="pca-modal-legend"></div>
+    </div>
   </div>
 
   <script type="importmap">

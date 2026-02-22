@@ -14,8 +14,7 @@ import pyvista as pv
 from skimage import measure
 
 PROJECT_MARKERS = [
-    Path('heart_models'),
-    Path('data-processing'),
+    Path('models'),
     Path('data-processing'),
 ]
 
