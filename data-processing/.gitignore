@@ -6,3 +6,7 @@ heart_models/
 ../output/scaler_model.pkl
 ../models/pca_model.pkl
 ../models/scaler_model.pkl
+*.png
+*.json
+scan_outputs/
+__pycache__/

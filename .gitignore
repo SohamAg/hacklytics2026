@@ -2,6 +2,9 @@
 healthy.OBJ
 cropped_norm_data/
 cropped_data/
+orig/
+cropped/
+scan_outputs/
 cropped_norm_data.zip
 cropped_norm.zip
 cropped_data.zip
@@ -9,3 +12,10 @@ cropped_data.zip
 *.obj
 *.glb
 *.csv
+heart_models/
+__pycache__/
+*.pyc
+models/*.pkl
+models/*.csv
+models/vectorai_scaler.json
+models/holdout_patients.json
