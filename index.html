@@ -85,6 +85,36 @@
       flex: 1;
       min-height: 0;
     }
+    .left-toolbar {
+      width: 200px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      background: rgba(22, 22, 26, 0.98);
+      border-right: 1px solid rgba(255,255,255,0.08);
+      padding: 0.75rem 0;
+      gap: 0;
+      overflow-y: auto;
+    }
+    .toolbar-section {
+      padding: 0 0.65rem 0.85rem;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .toolbar-section:last-child { border-bottom: none; }
+    .toolbar-section-label {
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 0.45rem;
+      padding-left: 0.15rem;
+    }
+    .toolbar-section-content {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
     .viz-wrapper {
       flex: 1;
       min-width: 0;
@@ -109,85 +139,98 @@
       padding: 0.35rem 0.65rem;
       border-radius: 6px;
     }
-    .toolbar {
-      position: absolute;
-      top: 0.75rem;
-      left: 0.75rem;
-      z-index: 10;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-    }
-    .toolbar .heartbeat-btn,
-    .toolbar .slice-btn,
-    .toolbar .dual-view-btn,
-    .toolbar .parts-wrap select,
-    .toolbar .condition-wrap select {
+    .left-toolbar .heartbeat-btn,
+    .left-toolbar .slice-btn,
+    .left-toolbar .dual-view-btn {
       font-family: inherit;
       font-size: 0.75rem;
       font-weight: 500;
       color: #e8e6e3;
-      background: rgba(30, 30, 36, 0.9);
+      background: rgba(255,255,255,0.06);
       border: 1px solid rgba(255,255,255,0.1);
       border-radius: 6px;
-      padding: 0.4rem 0.6rem;
+      padding: 0.45rem 0.6rem;
       cursor: pointer;
       outline: none;
+      width: 100%;
+      text-align: left;
     }
-    .toolbar .heartbeat-btn:hover,
-    .toolbar .slice-btn:hover,
-    .toolbar .dual-view-btn:hover { border-color: rgba(255,255,255,0.2); }
-    .toolbar .heartbeat-btn.active,
-    .toolbar .slice-btn.active,
-    .toolbar .dual-view-btn.active {
+    .left-toolbar .heartbeat-btn:hover,
+    .left-toolbar .slice-btn:hover,
+    .left-toolbar .dual-view-btn:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.08); }
+    .left-toolbar .heartbeat-btn.active,
+    .left-toolbar .slice-btn.active,
+    .left-toolbar .dual-view-btn.active {
       background: rgba(255,255,255,0.12);
       border-color: rgba(255,255,255,0.2);
     }
-    .toolbar .condition-wrap { display: flex; align-items: center; gap: 0.35rem; }
-    .toolbar .condition-wrap span { font-size: 0.7rem; color: #888; }
-    .toolbar .condition-wrap select { min-width: 8rem; }
-    .toolbar .parts-wrap { display: flex; align-items: center; gap: 0.35rem; }
-    .toolbar .parts-wrap span { font-size: 0.7rem; color: #888; }
-    .toolbar .parts-wrap select,
-    .toolbar .condition-wrap select {
+    .left-toolbar .condition-wrap,
+    .left-toolbar .parts-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.3rem;
+    }
+    .left-toolbar .condition-wrap span,
+    .left-toolbar .parts-wrap span { font-size: 0.68rem; color: #888; }
+    .left-toolbar select {
+      font-family: inherit;
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: #e8e6e3;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      padding: 0.4rem 0.5rem;
+      cursor: pointer;
+      outline: none;
+      width: 100%;
       padding-right: 1.5rem;
       appearance: none;
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
       background-repeat: no-repeat;
       background-position: right 0.4rem center;
     }
-    .toolbar .dual-view-conditions select { min-width: 6.5rem; }
-    .toolbar .outlines-toggle {
-      display: inline-flex;
+    .left-toolbar .dual-view-conditions select { min-width: 0; }
+    .left-toolbar .outlines-toggle {
+      display: flex;
       align-items: center;
       gap: 0.35rem;
-      font-size: 0.7rem;
+      font-size: 0.68rem;
       color: #888;
       cursor: pointer;
+      margin-top: 0.25rem;
     }
-    .toolbar .outlines-toggle input { cursor: pointer; }
-    .viewport-labels {
+    .left-toolbar .outlines-toggle input { cursor: pointer; }
+    .dual-view-panels {
       display: none;
       position: absolute;
-      top: 2.75rem;
-      left: 0;
-      right: 0;
-      bottom: 0;
+      inset: 0;
       pointer-events: none;
       z-index: 5;
     }
-    .viewport-labels.visible { display: block; }
-    .viewport-label {
+    .dual-view-panels.visible {
+      display: flex;
+    }
+    .view-panel {
+      flex: 1;
+      position: relative;
+      margin: 8px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(255,255,255,0.04);
+      background: transparent;
+    }
+    .view-panel-label {
       position: absolute;
-      top: 0.75rem;
+      top: 0.65rem;
+      left: 0.75rem;
       font-size: 0.7rem;
       font-weight: 600;
       color: rgba(255,255,255,0.5);
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
-    .viewport-label.viewport-left { left: 50%; transform: translate(-100%, 0); margin-left: -0.5rem; }
-    .viewport-label.viewport-right { left: 50%; margin-left: 0.5rem; }
     .comparison-overlay {
       display: none;
       position: absolute;
@@ -220,99 +263,21 @@
     .comparison-overlay .comparison-item.compressed .comparison-pct { color: #ef4444; }
     .slice-controls {
       display: none;
-      position: absolute;
-      top: 2.75rem;
-      left: 0.75rem;
-      z-index: 10;
-      padding: 0.5rem 0.75rem;
-      background: rgba(30, 30, 36, 0.95);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 6px;
+      padding: 0.5rem 0 0;
+      margin-top: 0.25rem;
+      border-top: 1px solid rgba(255,255,255,0.06);
     }
     .slice-controls.visible { display: block; }
     .slice-controls label { font-size: 0.65rem; color: #888; display: block; margin-bottom: 0.2rem; }
     .slice-controls .axis-row { display: flex; gap: 0.25rem; margin-bottom: 0.35rem; }
     .slice-controls .axis-row button {
-      font-family: inherit; font-size: 0.65rem; padding: 0.2rem 0.4rem;
+      flex: 1;
+      font-family: inherit; font-size: 0.65rem; padding: 0.25rem 0.35rem;
       border: 1px solid rgba(255,255,255,0.1); border-radius: 4px;
       background: transparent; color: #aaa; cursor: pointer;
     }
     .slice-controls .axis-row button.active { background: rgba(255,255,255,0.15); color: #fff; }
-    .slice-controls input[type="range"] { width: 120px; margin-top: 0.15rem; }
-    .chat-panel {
-      width: 380px;
-      flex-shrink: 0;
-      display: flex;
-      flex-direction: column;
-      background: rgba(18, 18, 20, 0.98);
-      border-left: 1px solid rgba(255, 255, 255, 0.06);
-    }
-    .chat-header {
-      padding: 0.75rem 1rem;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-      font-size: 0.8125rem;
-      font-weight: 600;
-      color: #e8e6e3;
-    }
-    .chat-messages {
-      flex: 1;
-      overflow-y: auto;
-      padding: 1rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-    .chat-msg {
-      font-size: 0.8125rem;
-      line-height: 1.5;
-      max-width: 92%;
-    }
-    .chat-msg.user {
-      align-self: flex-end;
-      background: rgba(45, 122, 255, 0.2);
-      color: #e8e6e3;
-      padding: 0.5rem 0.75rem;
-      border-radius: 10px 10px 4px 10px;
-    }
-    .chat-msg.bot {
-      align-self: flex-start;
-      background: rgba(255, 255, 255, 0.06);
-      color: #c0c0c0;
-      padding: 0.5rem 0.75rem;
-      border-radius: 10px 10px 10px 4px;
-    }
-    .chat-input-wrap {
-      padding: 0.75rem 1rem;
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
-      display: flex;
-      gap: 0.5rem;
-      align-items: center;
-    }
-    .chat-input-wrap input {
-      flex: 1;
-      font-family: inherit;
-      font-size: 0.8125rem;
-      color: #e8e6e3;
-      background: rgba(255, 255, 255, 0.06);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 8px;
-      padding: 0.5rem 0.75rem;
-      outline: none;
-    }
-    .chat-input-wrap input::placeholder { color: #666; }
-    .chat-input-wrap input:focus { border-color: rgba(45, 122, 255, 0.5); }
-    .chat-input-wrap button {
-      font-family: inherit;
-      font-size: 0.8125rem;
-      font-weight: 500;
-      color: #fff;
-      background: #2d7aff;
-      border: none;
-      border-radius: 8px;
-      padding: 0.5rem 0.85rem;
-      cursor: pointer;
-    }
-    .chat-input-wrap button:hover { background: #3d8aff; }
+    .slice-controls input[type="range"] { width: 100%; margin-top: 0.15rem; box-sizing: border-box; }
     .part-tag {
       display: none;
       position: absolute;
@@ -349,6 +314,281 @@
       color: #b0b0b0;
       margin: 0;
     }
+    .annotation-menu-wrap {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+    .annotation-menu-btn {
+      font-family: inherit;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: #e8e6e3;
+      background: rgba(30, 30, 36, 0.9);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      padding: 0.4rem 0.75rem;
+      cursor: pointer;
+      outline: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .annotation-menu-btn:hover { border-color: rgba(255,255,255,0.2); }
+    .annotation-menu-btn.active {
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(255,255,255,0.2);
+    }
+    .annotation-menu-btn svg {
+      transition: transform 0.2s ease;
+    }
+    .annotation-panel {
+      display: none;
+      margin-top: 0.5rem;
+      width: 220px;
+      background: rgba(22, 22, 26, 0.98);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+      overflow: hidden;
+    }
+    .annotation-panel.visible { display: block; }
+    .annotation-panel-header {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .annotation-section {
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .annotation-section:last-child { border-bottom: none; }
+    .annotation-section-title {
+      font-size: 0.7rem;
+      color: #aaa;
+      margin-bottom: 0.4rem;
+    }
+    .annotation-tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+    .annotation-tool-btn {
+      font-family: inherit;
+      font-size: 0.7rem;
+      color: #e8e6e3;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      padding: 0.35rem 0.5rem;
+      cursor: pointer;
+      outline: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+    .annotation-tool-btn:hover {
+      background: rgba(255,255,255,0.1);
+      border-color: rgba(255,255,255,0.18);
+    }
+    .annotation-tool-btn.active {
+      background: rgba(255,255,255,0.15);
+      border-color: rgba(255,255,255,0.25);
+    }
+    .annotation-tool-dot,
+    .annotation-tool-square {
+      width: 20px;
+      height: 20px;
+      border: none;
+      border-radius: 50%;
+      padding: 0;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .annotation-tool-dot:hover,
+    .annotation-tool-square:hover { transform: scale(1.15); }
+    .annotation-tool-dot.active,
+    .annotation-tool-square.active {
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.9);
+      transform: scale(1.1);
+    }
+    .annotation-tool-dot.pin-red { background: #ef4444; }
+    .annotation-tool-dot.pin-blue { background: #3b82f6; }
+    .annotation-tool-dot.pin-green { background: #22c55e; }
+    .annotation-tool-dot.pin-amber { background: #f59e0b; }
+    .annotation-tool-square { border-radius: 4px; }
+    .annotation-tool-square.note-yellow { background: #fef08a; }
+    .annotation-tool-square.note-pink { background: #fbcfe8; }
+    .annotation-tool-square.note-blue { background: #bfdbfe; }
+    .annotation-tool-square.note-mint { background: #a7f3d0; }
+    .annotation-tool-pen {
+      font-family: inherit;
+      font-size: 0.7rem;
+      color: #e8e6e3;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      padding: 0.35rem 0.5rem;
+      cursor: crosshair;
+      outline: none;
+    }
+    .annotation-tool-pen:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.18); }
+    .annotation-tool-pen.active { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.25); }
+    .pen-options-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.4rem;
+    }
+    .pen-options-row:last-of-type { margin-bottom: 0; }
+    .pen-option-label { font-size: 0.68rem; color: #888; min-width: 2.5rem; }
+    .pen-color-swatches, .pen-width-btns { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+    .pen-color-swatch {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.2);
+      padding: 0;
+      cursor: pointer;
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+    }
+    .pen-color-swatch:hover { transform: scale(1.15); }
+    .pen-color-swatch.active { box-shadow: 0 0 0 2px rgba(255,255,255,0.9); transform: scale(1.1); }
+    .pen-color-red { background: #ef4444; }
+    .pen-color-blue { background: #3b82f6; }
+    .pen-color-green { background: #22c55e; }
+    .pen-color-black { background: #1a1a1a; }
+    .pen-color-white { background: #fff; }
+    .pen-width-btn {
+      font-family: inherit;
+      font-size: 0.65rem;
+      padding: 0.25rem 0.4rem;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.06);
+      color: #ccc;
+      cursor: pointer;
+    }
+    .pen-width-btn:hover { background: rgba(255,255,255,0.1); }
+    .pen-width-btn.active { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.25); }
+    .pin-comment-panel {
+      display: none;
+      position: absolute;
+      width: 240px;
+      z-index: 15;
+      left: 0;
+      top: 0;
+      background: rgba(22, 22, 26, 0.98);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+      overflow: hidden;
+    }
+    .pin-comment-panel.visible { display: block; }
+    .pin-comment-panel h4 {
+      margin: 0;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #ccc;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .pin-comment-panel textarea {
+      width: 100%;
+      min-height: 72px;
+      margin: 0;
+      padding: 0.5rem 0.75rem;
+      font-family: inherit;
+      font-size: 0.8rem;
+      color: #e8e6e3;
+      background: rgba(0,0,0,0.2);
+      border: none;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      resize: vertical;
+      outline: none;
+      box-sizing: border-box;
+    }
+    .pin-comment-panel textarea::placeholder { color: #666; }
+    .pin-comment-panel .pin-comment-actions {
+      padding: 0.4rem 0.75rem;
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.35rem;
+    }
+    .pin-comment-panel .pin-comment-actions button {
+      font-family: inherit;
+      font-size: 0.7rem;
+      padding: 0.3rem 0.5rem;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.08);
+      color: #e8e6e3;
+      cursor: pointer;
+    }
+    .pin-comment-panel .pin-comment-actions button:hover { background: rgba(255,255,255,0.12); }
+    .pin-comment-panel .pin-comment-actions button.primary { background: rgba(45, 122, 255, 0.4); border-color: rgba(45, 122, 255, 0.6); }
+    .sticky-note {
+      position: absolute;
+      width: 140px;
+      min-height: 100px;
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+      z-index: 12;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      cursor: move;
+      border: 1px solid rgba(0,0,0,0.12);
+    }
+    .sticky-note-header {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      padding: 0.2rem 0.25rem 0;
+      min-height: 22px;
+      flex-shrink: 0;
+    }
+    .sticky-note-delete {
+      width: 20px;
+      height: 20px;
+      padding: 0;
+      border: none;
+      border-radius: 4px;
+      background: rgba(0,0,0,0.15);
+      color: #333;
+      font-size: 0.9rem;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .sticky-note-delete:hover { background: rgba(0,0,0,0.25); color: #000; }
+    .sticky-note-body {
+      flex: 1;
+      padding: 0.4rem 0.5rem 0.5rem;
+      font-size: 0.75rem;
+      color: #333;
+      resize: none;
+      border: none;
+      outline: none;
+      font-family: inherit;
+      min-height: 60px;
+      background: transparent;
+    }
+    .sticky-note-yellow { background: #fef08a; }
+    .sticky-note-pink { background: #fbcfe8; }
+    .sticky-note-blue { background: #bfdbfe; }
+    .sticky-note-mint { background: #a7f3d0; }
   </style>
 </head>
 <body>
@@ -368,53 +608,126 @@
       <p>Rather than viewing static images, users can explore the heart as a living system — examining structural changes, understanding disease progression, and interacting directly with patient-specific anatomy.</p>
     </section>
     <main class="main">
-      <div class="viz-wrapper">
-        <div class="toolbar">
-          <button type="button" class="heartbeat-btn" id="heartbeat-btn" aria-pressed="false">Start heartbeat</button>
-          <button type="button" class="slice-btn" id="slice-btn" aria-pressed="false">Slice view</button>
-          <button type="button" class="dual-view-btn" id="dual-view-btn" aria-pressed="false">Dual view</button>
-          <div class="condition-wrap" id="condition-wrap-single">
-            <span>Simulate</span>
-            <select id="condition-select" aria-label="Simulate congenital condition">
-              <option value="">Baseline</option>
-            </select>
-          </div>
-          <div class="condition-wrap dual-view-conditions" id="condition-wrap-dual" style="display: none;">
-            <span>Left</span>
-            <select id="condition-select-left" aria-label="Simulate condition (left heart)">
-              <option value="">Baseline</option>
-            </select>
-            <span>Right</span>
-            <select id="condition-select-right" aria-label="Simulate condition (right heart)">
-              <option value="">Baseline</option>
-            </select>
-            <label class="outlines-toggle">
-              <input type="checkbox" id="outlines-only-highlighted" checked aria-label="Show comparison outlines only for highlighted part" />
-              <span>Outlines: highlighted only</span>
-            </label>
-          </div>
-          <div class="parts-wrap">
-            <span>Highlight</span>
-            <select id="parts-select" aria-label="Select part to highlight">
-              <option value="">—</option>
-            </select>
+      <aside class="left-toolbar">
+        <div class="toolbar-section">
+          <div class="toolbar-section-label">View</div>
+          <div class="toolbar-section-content">
+            <button type="button" class="heartbeat-btn" id="heartbeat-btn" aria-pressed="false">Start heartbeat</button>
+            <button type="button" class="slice-btn" id="slice-btn" aria-pressed="false">Slice view</button>
+            <button type="button" class="dual-view-btn" id="dual-view-btn" aria-pressed="false">Dual view</button>
+            <div class="slice-controls" id="slice-controls" aria-hidden="true">
+              <label>Slice axis</label>
+              <div class="axis-row">
+                <button type="button" data-axis="x">X</button>
+                <button type="button" data-axis="y" class="active">Y</button>
+                <button type="button" data-axis="z">Z</button>
+              </div>
+              <label>Position</label>
+              <input type="range" id="slice-position" min="-1" max="1" step="0.01" value="0" />
+            </div>
           </div>
         </div>
-        <div class="viewport-labels" id="viewport-labels" aria-hidden="true">
-          <span class="viewport-label viewport-left">Left</span>
-          <span class="viewport-label viewport-right">Right</span>
+        <div class="toolbar-section">
+          <div class="toolbar-section-label">Simulate</div>
+          <div class="toolbar-section-content">
+            <div class="condition-wrap" id="condition-wrap-single">
+              <span>Condition</span>
+              <select id="condition-select" aria-label="Simulate congenital condition">
+                <option value="">Baseline</option>
+              </select>
+            </div>
+            <div class="condition-wrap dual-view-conditions" id="condition-wrap-dual" style="display: none;">
+              <span>Left</span>
+              <select id="condition-select-left" aria-label="Simulate condition (left heart)">
+                <option value="">Baseline</option>
+              </select>
+              <span>Right</span>
+              <select id="condition-select-right" aria-label="Simulate condition (right heart)">
+                <option value="">Baseline</option>
+              </select>
+              <label class="outlines-toggle">
+                <input type="checkbox" id="outlines-only-highlighted" checked aria-label="Show comparison outlines only for highlighted part" />
+                <span>Outlines: highlighted only</span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="toolbar-section">
+          <div class="toolbar-section-label">Highlight</div>
+          <div class="toolbar-section-content">
+            <div class="parts-wrap">
+              <span>Part</span>
+              <select id="parts-select" aria-label="Select part to highlight">
+                <option value="">—</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </aside>
+      <div class="viz-wrapper">
+        <div class="annotation-menu-wrap">
+          <button type="button" class="annotation-menu-btn" id="annotation-menu-btn" aria-expanded="false" aria-controls="annotation-panel">
+            <span>Edit / Annotate</span>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 4l4 4 4-4"/></svg>
+          </button>
+          <div class="annotation-panel" id="annotation-panel" role="menu" aria-label="Annotation tools">
+            <div class="annotation-panel-header">Mark on heart</div>
+            <div class="annotation-section">
+              <div class="annotation-section-title">Pins</div>
+              <div class="annotation-tools">
+                <button type="button" class="annotation-tool annotation-tool-dot pin-red" data-tool="pin-red" title="Red pin" aria-label="Red pin"></button>
+                <button type="button" class="annotation-tool annotation-tool-dot pin-blue" data-tool="pin-blue" title="Blue pin" aria-label="Blue pin"></button>
+                <button type="button" class="annotation-tool annotation-tool-dot pin-green" data-tool="pin-green" title="Green pin" aria-label="Green pin"></button>
+                <button type="button" class="annotation-tool annotation-tool-dot pin-amber" data-tool="pin-amber" title="Amber pin" aria-label="Amber pin"></button>
+              </div>
+            </div>
+            <div class="annotation-section">
+              <div class="annotation-section-title">Sticky notes</div>
+              <div class="annotation-tools">
+                <button type="button" class="annotation-tool annotation-tool-square note-yellow" data-tool="sticky-note-yellow" title="Yellow note" aria-label="Yellow sticky note"></button>
+                <button type="button" class="annotation-tool annotation-tool-square note-pink" data-tool="sticky-note-pink" title="Pink note" aria-label="Pink sticky note"></button>
+                <button type="button" class="annotation-tool annotation-tool-square note-blue" data-tool="sticky-note-blue" title="Blue note" aria-label="Blue sticky note"></button>
+                <button type="button" class="annotation-tool annotation-tool-square note-mint" data-tool="sticky-note-mint" title="Mint note" aria-label="Mint sticky note"></button>
+              </div>
+            </div>
+            <div class="annotation-section">
+              <div class="annotation-section-title">Draw on heart</div>
+              <div class="pen-options-row">
+                <span class="pen-option-label">Color</span>
+                <div class="pen-color-swatches">
+                  <button type="button" class="pen-color-swatch pen-color-red active" data-pen-color="pen-red" title="Red" aria-label="Red pen"></button>
+                  <button type="button" class="pen-color-swatch pen-color-blue" data-pen-color="pen-blue" title="Blue" aria-label="Blue pen"></button>
+                  <button type="button" class="pen-color-swatch pen-color-green" data-pen-color="pen-green" title="Green" aria-label="Green pen"></button>
+                  <button type="button" class="pen-color-swatch pen-color-black" data-pen-color="pen-black" title="Black" aria-label="Black pen"></button>
+                  <button type="button" class="pen-color-swatch pen-color-white" data-pen-color="pen-white" title="White" aria-label="White pen"></button>
+                </div>
+              </div>
+              <div class="pen-options-row">
+                <span class="pen-option-label">Thickness</span>
+                <div class="pen-width-btns">
+                  <button type="button" class="pen-width-btn" data-pen-width="pen-thin" title="Thin">Thin</button>
+                  <button type="button" class="pen-width-btn active" data-pen-width="pen-medium" title="Medium">Med</button>
+                  <button type="button" class="pen-width-btn" data-pen-width="pen-thick" title="Thick">Thick</button>
+                </div>
+              </div>
+              <div class="annotation-tools" style="margin-top: 0.35rem;">
+                <button type="button" class="annotation-tool annotation-tool-pen" data-tool="pen" title="Draw on the heart surface (drag to draw)">Pen</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="pin-comment-panel" id="pin-comment-panel" aria-hidden="true">
+          <h4>Pin comment</h4>
+          <textarea id="pin-comment-text" placeholder="Add a comment..." rows="3"></textarea>
+          <div class="pin-comment-actions">
+            <button type="button" id="pin-comment-done">Done</button>
+          </div>
+        </div>
+        <div class="dual-view-panels" id="dual-view-panels" aria-hidden="true">
+          <div class="view-panel view-panel-left"><span class="view-panel-label">Left</span></div>
+          <div class="view-panel view-panel-right"><span class="view-panel-label">Right</span></div>
         </div>
         <div class="comparison-overlay" id="comparison-overlay" style="display: none;" aria-label="Scale factors: expanded vs compressed segments on right heart"></div>
-        <div class="slice-controls" id="slice-controls" aria-hidden="true">
-          <label>Slice axis</label>
-          <div class="axis-row">
-            <button type="button" data-axis="x">X</button>
-            <button type="button" data-axis="y" class="active">Y</button>
-            <button type="button" data-axis="z">Z</button>
-          </div>
-          <label>Position</label>
-          <input type="range" id="slice-position" min="-1" max="1" step="0.01" value="0" />
-        </div>
         <div id="canvas-container"></div>
         <div class="part-tag" id="part-tag" aria-hidden="true">
           <div class="part-tag-handle" id="part-tag-handle">⋮⋮</div>
@@ -426,18 +739,6 @@
         <p id="load-status" class="viz-hint" style="display:none;"></p>
         <p class="viz-hint">Drag to rotate · Scroll to zoom · Right-click part to highlight</p>
       </div>
-      <aside class="chat-panel">
-        <div class="chat-header">Ask about the model</div>
-        <div class="chat-messages" id="chat-messages">
-          <div class="chat-msg bot" data-welcome>
-            Ask me anything about this heart model: anatomy, how to use the viewer, or what the impairment (bump) represents. I can explain parts, controls, and the visualization.
-          </div>
-        </div>
-        <div class="chat-input-wrap">
-          <input type="text" id="chat-input" placeholder="Ask a question about the heart model..." autocomplete="off" />
-          <button type="button" id="chat-send">Send</button>
-        </div>
-      </aside>
     </main>
   </div>
   <script type="importmap">
@@ -460,45 +761,6 @@
           aboutToggle.textContent = open ? 'Hide' : 'About';
         });
       }
-      const messagesEl = document.getElementById('chat-messages');
-      const inputEl = document.getElementById('chat-input');
-      const sendBtn = document.getElementById('chat-send');
-      function addMsg(text, isUser) {
-        const welcome = messagesEl.querySelector('[data-welcome]');
-        if (welcome) welcome.remove();
-        const div = document.createElement('div');
-        div.className = 'chat-msg ' + (isUser ? 'user' : 'bot');
-        div.textContent = text;
-        messagesEl.appendChild(div);
-        messagesEl.scrollTop = messagesEl.scrollHeight;
-      }
-      function reply(question) {
-        const q = question.toLowerCase().trim();
-        if (!q) return "Type a question about the heart model (e.g. anatomy, controls, or the impairment).";
-        if (q.includes('part') || q.includes('anatomy') || q.includes('structure') || q.includes('highlight'))
-          return "Use the **Highlight** dropdown in the toolbar to select a part of the heart; that region will be highlighted in blue. This model can include named segments from scan data. The main body can be emphasized to show how different regions relate.";
-        if (q.includes('heartbeat') || q.includes('pulse') || q.includes('beat'))
-          return "Click **Start heartbeat** to animate the heart with a lub-dub rhythm. Only the body of the heart pulses; vessels stay relatively still to mimic realistic motion. Click **Stop heartbeat** to freeze.";
-        if (q.includes('slice') || q.includes('cut') || q.includes('cross'))
-          return "Use **Slice view** to reveal cross-sections along the X, Y, or Z axis. Adjust the slider to move the cutting plane and inspect internal structure.";
-        if (q.includes('bump') || q.includes('impairment') || q.includes('disease') || q.includes('abnormal') || q.includes('hypertrophy') || q.includes('cardiomyopathy'))
-          return "The bump on the heart body is a **simulated structural impairment** (e.g. focal hypertrophy or aneurysm) to show how conditions can alter anatomy. HeartScape is designed to visualize healthy vs. diseased hearts so clinicians and patients can see such changes clearly.";
-        if (q.includes('rotate') || q.includes('zoom') || q.includes('control') || q.includes('use') || q.includes('how'))
-          return "**Drag** to rotate the heart, **scroll** to zoom in and out. Use the toolbar for heartbeat, slice view, and part highlighting. The 3D model is built from real anatomical data for accurate visualization.";
-        if (q.includes('what') && (q.includes('model') || q.includes('this')))
-          return "This is a 3D human heart model derived from anatomical data. You can explore it interactively: rotate, zoom, highlight parts, run a heartbeat animation, and apply a slice. A simulated impairment (bump) is included to demonstrate how HeartScape can show structural changes.";
-        return "HeartScape lets you explore this 3D heart: rotate and zoom, highlight parts from the dropdown, start/stop the heartbeat, and use slice view for cross-sections. The bump on the body is a simulated impairment for education. Ask about anatomy, controls, or disease visualization.";
-      }
-      function send() {
-        const text = inputEl && inputEl.value.trim();
-        if (!text) return;
-        addMsg(text, true);
-        inputEl.value = '';
-        const botText = reply(text).replace(/\*\*([^*]+)\*\*/g, '$1');
-        addMsg(botText, false);
-      }
-      if (sendBtn) sendBtn.addEventListener('click', send);
-      if (inputEl) inputEl.addEventListener('keydown', function(e) { if (e.key === 'Enter') send(); });
     })();
   </script>
 </body>

@@ -61,6 +61,31 @@ const slicePlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const DIM_OPACITY = 0.15;
 const DIM_DARKEN = 0.18;
 
+let annotationPanelOpen = false;
+let currentAnnotationTool = null;  // 'pin-red' | 'pin-blue' | 'sticky-note-*' | null
+
+const PIN_COLORS = { 'pin-red': 0xef4444, 'pin-blue': 0x3b82f6, 'pin-green': 0x22c55e, 'pin-amber': 0xf59e0b };
+const PIN_RADIUS = 0.08;
+let pins = [];  // { id, mesh, color, comment }
+let nextPinId = 1;
+let commentPanelPinId = null;
+const _pinWorldPos = new THREE.Vector3();
+
+const STICKY_COLORS = { 'sticky-note-yellow': 'yellow', 'sticky-note-pink': 'pink', 'sticky-note-blue': 'blue', 'sticky-note-mint': 'mint' };
+let stickyNotes = [];  // { id, el, colorKey }
+let nextStickyId = 1;
+
+const PEN_COLORS = { 'pen-red': 0xef4444, 'pen-blue': 0x3b82f6, 'pen-green': 0x22c55e, 'pen-black': 0x1a1a1a, 'pen-white': 0xffffff };
+const PEN_WIDTHS = { 'pen-thin': 2, 'pen-medium': 4, 'pen-thick': 6 };
+const PEN_MIN_DIST = 0.008;  // min distance between points (local space) to avoid jitter
+let currentPenColor = 'pen-red';
+let currentPenWidth = 'pen-medium';
+let penStrokes = [];  // { line: THREE.Line, points: THREE.Vector3[] }
+let isDrawing = false;
+let currentStroke = null;
+let penMoveHandler = null;
+let penUpHandler = null;
+
 const BEAT_PERIOD = 0.9;
 const BEAT_AMPLITUDE = 0.05;
 
@@ -487,6 +512,265 @@ function pickPartFromMouse(event) {
   onPartSelect();
 }
 
+function getVizWrapper() {
+  return container && container.parentElement;
+}
+
+function createStickyNote(clientX, clientY) {
+  const wrapper = getVizWrapper();
+  if (!wrapper) return;
+  const rect = wrapper.getBoundingClientRect();
+  const left = clientX - rect.left;
+  const top = clientY - rect.top;
+  const id = nextStickyId++;
+  const colorKey = STICKY_COLORS[currentAnnotationTool] || 'yellow';
+  const el = document.createElement('div');
+  el.className = `sticky-note sticky-note-${colorKey}`;
+  el.dataset.stickyId = String(id);
+  el.style.left = `${Math.max(0, left)}px`;
+  el.style.top = `${Math.max(0, top)}px`;
+  const header = document.createElement('div');
+  header.className = 'sticky-note-header';
+  const deleteBtn = document.createElement('button');
+  deleteBtn.type = 'button';
+  deleteBtn.className = 'sticky-note-delete';
+  deleteBtn.setAttribute('aria-label', 'Delete sticky note');
+  deleteBtn.textContent = '×';
+  deleteBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    removeStickyNote(id);
+  });
+  header.appendChild(deleteBtn);
+  const body = document.createElement('textarea');
+  body.className = 'sticky-note-body';
+  body.placeholder = 'Note...';
+  body.setAttribute('rows', 3);
+  body.addEventListener('mousedown', (e) => e.stopPropagation());
+  el.appendChild(header);
+  el.appendChild(body);
+  wrapper.appendChild(el);
+  stickyNotes.push({ id, el, colorKey });
+  setupStickyDrag(el, wrapper);
+}
+
+function setupStickyDrag(stickyEl, wrapper) {
+  const header = stickyEl.querySelector('.sticky-note-header');
+  if (!header) return;
+  header.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    if (e.target.closest('.sticky-note-delete')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = wrapper.getBoundingClientRect();
+    let offsetX = e.clientX - rect.left - parseFloat(stickyEl.style.left || 0);
+    let offsetY = e.clientY - rect.top - parseFloat(stickyEl.style.top || 0);
+    const onMove = (ev) => {
+      const x = ev.clientX - rect.left - offsetX;
+      const y = ev.clientY - rect.top - offsetY;
+      stickyEl.style.left = `${Math.max(0, x)}px`;
+      stickyEl.style.top = `${Math.max(0, y)}px`;
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+}
+
+function removeStickyNote(id) {
+  const idx = stickyNotes.findIndex((s) => s.id === id);
+  if (idx === -1) return;
+  const { el } = stickyNotes[idx];
+  if (el && el.parentNode) el.parentNode.removeChild(el);
+  stickyNotes.splice(idx, 1);
+}
+
+function setMouseNDCFromEvent(event) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  const canvasX = (event.clientX - rect.left) / rect.width;
+  const canvasY = (event.clientY - rect.top) / rect.height;
+  if (dualViewEnabled && cameraRight) {
+    if (canvasX >= 0.5) return false;
+    mouse.x = (canvasX / 0.5) * 2 - 1;
+    mouse.y = -(canvasY * 2 - 1);
+  } else {
+    mouse.x = canvasX * 2 - 1;
+    mouse.y = -(canvasY * 2 - 1);
+  }
+  return true;
+}
+
+function getFirstHeartHit(cam) {
+  raycaster.setFromCamera(mouse, cam);
+  const intersects = raycaster.intersectObject(heartGroup, true);
+  const first = intersects.find((i) => i.object.userData.pinId == null);
+  return first || null;
+}
+
+function startPenStroke(worldPoint) {
+  const localPoint = worldPoint.clone().applyMatrix4(heartGroup.matrixWorld.clone().invert());
+  const points = [localPoint.clone()];
+  const colorHex = PEN_COLORS[currentPenColor] ?? 0xef4444;
+  const widthPx = PEN_WIDTHS[currentPenWidth] ?? 4;
+  const geometry = new THREE.BufferGeometry().setFromPoints(points);
+  const material = new THREE.LineBasicMaterial({ color: colorHex, linewidth: Math.max(1, widthPx) });
+  const line = new THREE.Line(geometry, material);
+  heartGroup.add(line);
+  currentStroke = { line, points };
+  penStrokes.push(currentStroke);
+  isDrawing = true;
+  controls.enabled = false;
+
+  penMoveHandler = (ev) => {
+    if (!currentStroke || !heartGroup) return;
+    if (!setMouseNDCFromEvent(ev)) return;
+    const cam = dualViewEnabled && cameraRight ? camera : camera;
+    const hit = getFirstHeartHit(cam);
+    if (!hit) return;
+    const localPoint = hit.point.clone().applyMatrix4(heartGroup.matrixWorld.clone().invert());
+    const last = currentStroke.points[currentStroke.points.length - 1];
+    if (last.distanceTo(localPoint) < PEN_MIN_DIST) return;
+    currentStroke.points.push(localPoint);
+    currentStroke.line.geometry.dispose();
+    currentStroke.line.geometry = new THREE.BufferGeometry().setFromPoints(currentStroke.points);
+  };
+
+  penUpHandler = () => {
+    endPenStroke();
+  };
+
+  document.addEventListener('mousemove', penMoveHandler);
+  document.addEventListener('mouseup', penUpHandler);
+}
+
+function endPenStroke() {
+  if (currentStroke && currentStroke.points.length < 2) {
+    heartGroup.remove(currentStroke.line);
+    currentStroke.line.geometry.dispose();
+    currentStroke.line.material.dispose();
+    penStrokes.pop();
+  }
+  isDrawing = false;
+  currentStroke = null;
+  controls.enabled = true;
+  if (penMoveHandler) {
+    document.removeEventListener('mousemove', penMoveHandler);
+    penMoveHandler = null;
+  }
+  if (penUpHandler) {
+    document.removeEventListener('mouseup', penUpHandler);
+    penUpHandler = null;
+  }
+}
+
+function handleAnnotationClick(event) {
+  if (event.button !== 0) return;
+  const wrapper = getVizWrapper();
+  if (event.target.closest && event.target.closest('.sticky-note')) return;
+
+  if (currentAnnotationTool && currentAnnotationTool.startsWith('sticky-note-')) {
+    if (wrapper) {
+      createStickyNote(event.clientX, event.clientY);
+      event.preventDefault();
+    }
+    return;
+  }
+
+  if (!heartGroup) return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  const canvasX = (event.clientX - rect.left) / rect.width;
+  const canvasY = (event.clientY - rect.top) / rect.height;
+  let cam;
+  if (dualViewEnabled && cameraRight) {
+    if (canvasX >= 0.5) return;  // pins only on left heart for now
+    mouse.x = (canvasX / 0.5) * 2 - 1;
+    mouse.y = -(canvasY * 2 - 1);
+    cam = camera;
+  } else {
+    mouse.x = canvasX * 2 - 1;
+    mouse.y = -(canvasY * 2 - 1);
+    cam = camera;
+  }
+  raycaster.setFromCamera(mouse, cam);
+  const intersects = raycaster.intersectObject(heartGroup, true);
+  if (!intersects.length) return;
+  const first = intersects[0];
+  const isPin = first.object.userData.pinId != null;
+  if (isPin) {
+    openPinCommentPanel(first.object.userData.pinId);
+    return;
+  }
+  if (currentAnnotationTool === 'pen') {
+    startPenStroke(first.point.clone());
+    event.preventDefault();
+    return;
+  }
+  if (!currentAnnotationTool || !currentAnnotationTool.startsWith('pin-')) return;
+  const colorHex = PIN_COLORS[currentAnnotationTool];
+  if (colorHex == null) return;
+  const localPoint = first.point.clone().applyMatrix4(heartGroup.matrixWorld.clone().invert());
+  const id = nextPinId++;
+  const geometry = new THREE.SphereGeometry(PIN_RADIUS, 16, 12);
+  const material = new THREE.MeshBasicMaterial({ color: colorHex });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.copy(localPoint);
+  mesh.userData = { pinId: id, comment: '' };
+  heartGroup.add(mesh);
+  pins.push({ id, mesh, color: currentAnnotationTool, comment: '' });
+  event.preventDefault();
+}
+
+function openPinCommentPanel(pinId) {
+  const pin = pins.find((p) => p.id === pinId);
+  if (!pin) return;
+  commentPanelPinId = pinId;
+  const panel = document.getElementById('pin-comment-panel');
+  const textarea = document.getElementById('pin-comment-text');
+  if (textarea) textarea.value = pin.comment || '';
+  if (panel) {
+    pin.mesh.getWorldPosition(_pinWorldPos);
+    _pinWorldPos.project(camera);
+    const rect = container.getBoundingClientRect();
+    const w = dualViewEnabled ? rect.width * 0.5 : rect.width;
+    const px = dualViewEnabled ? (_pinWorldPos.x + 1) * 0.5 * w : (_pinWorldPos.x + 1) * 0.5 * rect.width;
+    const py = (1 - _pinWorldPos.y) * 0.5 * rect.height;
+    const offsetX = 14;
+    const offsetY = 10;
+    const panelW = 240;
+    const panelH = 160;
+    let left = px + offsetX;
+    let top = py + offsetY;
+    left = Math.max(8, Math.min(left, rect.width - panelW - 8));
+    top = Math.max(8, Math.min(top, rect.height - panelH - 8));
+    panel.style.left = `${left}px`;
+    panel.style.top = `${top}px`;
+    panel.classList.add('visible');
+    panel.setAttribute('aria-hidden', 'false');
+    textarea?.focus();
+  }
+  event?.preventDefault();
+}
+
+function closePinCommentPanel(save) {
+  if (commentPanelPinId == null) return;
+  const pin = pins.find((p) => p.id === commentPanelPinId);
+  const textarea = document.getElementById('pin-comment-text');
+  if (save && pin && textarea) {
+    const text = textarea.value.trim();
+    pin.comment = text;
+    pin.mesh.userData.comment = text;
+  }
+  commentPanelPinId = null;
+  const panel = document.getElementById('pin-comment-panel');
+  if (panel) {
+    panel.classList.remove('visible');
+    panel.setAttribute('aria-hidden', 'true');
+  }
+  if (textarea) textarea.value = '';
+}
+
 // Load condition–feature data for "Simulate condition" (run data-processing/discover_trends.py to generate)
 fetch('./models/condition_effects.json')
   .then((r) => r.ok ? r.json() : Promise.reject(new Error('Not found')))
@@ -570,10 +854,13 @@ function createRightHeart(scale) {
 function setDualViewUI(on) {
   const wrapSingle = document.getElementById('condition-wrap-single');
   const wrapDual = document.getElementById('condition-wrap-dual');
-  const labels = document.getElementById('viewport-labels');
+  const panels = document.getElementById('dual-view-panels');
   if (wrapSingle) wrapSingle.style.display = on ? 'none' : 'flex';
   if (wrapDual) wrapDual.style.display = on ? 'flex' : 'none';
-  if (labels) labels.classList.toggle('visible', on);
+  if (panels) {
+    panels.classList.toggle('visible', on);
+    panels.setAttribute('aria-hidden', !on);
+  }
   const overlay = document.getElementById('comparison-overlay');
   if (overlay) overlay.style.display = on ? 'block' : 'none';
   if (!on) updateComparisonOutlines(null, null);
@@ -766,7 +1053,10 @@ loader.load(
     }
 
     renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
-    renderer.domElement.addEventListener('mousedown', pickPartFromMouse);
+    renderer.domElement.addEventListener('mousedown', (e) => {
+      if (e.button === 0) handleAnnotationClick(e);
+      else if (e.button === 2) pickPartFromMouse(e);
+    });
 
     const partTag = document.getElementById('part-tag');
     const partTagHandle = document.getElementById('part-tag-handle');
@@ -844,6 +1134,57 @@ loader.load(
         if (sliceEnabled) applySliceToMeshes(true);
       });
     });
+
+    const annotationMenuBtn = document.getElementById('annotation-menu-btn');
+    const annotationPanel = document.getElementById('annotation-panel');
+    if (annotationMenuBtn && annotationPanel) {
+      annotationMenuBtn.addEventListener('click', () => {
+        annotationPanelOpen = !annotationPanelOpen;
+        annotationPanel.classList.toggle('visible', annotationPanelOpen);
+        annotationMenuBtn.classList.toggle('active', annotationPanelOpen);
+        annotationMenuBtn.setAttribute('aria-expanded', annotationPanelOpen);
+        const svg = annotationMenuBtn.querySelector('svg');
+        if (svg) svg.style.transform = annotationPanelOpen ? 'rotate(180deg)' : '';
+      });
+    }
+    const annotationToolBtns = document.querySelectorAll('.annotation-tool');
+    annotationToolBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const tool = btn.dataset.tool;
+        if (currentAnnotationTool === tool) {
+          currentAnnotationTool = null;
+          btn.classList.remove('active');
+        } else {
+          annotationToolBtns.forEach((b) => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentAnnotationTool = tool;
+        }
+      });
+    });
+
+    document.querySelectorAll('.pen-color-swatch').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const color = btn.dataset.penColor;
+        if (!color) return;
+        currentPenColor = color;
+        document.querySelectorAll('.pen-color-swatch').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+    document.querySelectorAll('.pen-width-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const width = btn.dataset.penWidth;
+        if (!width) return;
+        currentPenWidth = width;
+        document.querySelectorAll('.pen-width-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+
+    const pinCommentDone = document.getElementById('pin-comment-done');
+    const pinCommentText = document.getElementById('pin-comment-text');
+    if (pinCommentDone) pinCommentDone.addEventListener('click', () => closePinCommentPanel(true));
+    if (pinCommentText) pinCommentText.addEventListener('blur', () => { if (commentPanelPinId != null) closePinCommentPanel(true); });
   },
   (xhr) => {
     if (xhr.lengthComputable) {
