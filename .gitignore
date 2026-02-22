@@ -1,0 +1,9 @@
+*.nii.gz
+healthy.OBJ
+cropped_norm_data/
+cropped_data/
+cropped_norm_data.zip
+cropped_data.zip
+.DS_Store
+*.obj
+*.glb
