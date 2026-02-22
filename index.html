@@ -239,6 +239,82 @@
       cursor: pointer;
     }
     .chat-input-wrap button:hover { background: #3d8aff; }
+    .lens-btn {
+      font-family: inherit;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: #e8e6e3;
+      background: rgba(30, 30, 36, 0.9);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      padding: 0.4rem 0.6rem;
+      cursor: pointer;
+      outline: none;
+    }
+    .lens-btn:hover { border-color: rgba(255,255,255,0.2); }
+    .lens-btn.active {
+      background: rgba(126, 184, 255, 0.2);
+      border-color: rgba(126, 184, 255, 0.5);
+      color: rgba(126, 184, 255, 1);
+    }
+    .lens-popup {
+      position: fixed;
+      z-index: 1000;
+      pointer-events: auto;
+    }
+    .popup-content {
+      background: rgba(30, 30, 36, 0.98);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 0;
+      width: 380px;
+      max-height: 60vh;
+      overflow-y: auto;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+    }
+    .popup-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      position: sticky;
+      top: 0;
+      background: rgba(30, 30, 36, 0.98);
+    }
+    .popup-header h3 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin: 0;
+      color: #e8e6e3;
+    }
+    .popup-close {
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 1.75rem;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+    }
+    .popup-close:hover { color: #ccc; }
+    .popup-content p {
+      padding: 1rem;
+      font-size: 0.8125rem;
+      line-height: 1.6;
+      color: #b0b0b0;
+      margin: 0;
+    }
+    .popup-content hr {
+      margin: 0.5rem 0;
+      border: none;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .lens-popup.loading .popup-content p {
+      text-align: center;
+      color: rgba(255, 255, 255, 0.5);
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
@@ -258,6 +334,7 @@
     <main class="main">
       <div class="viz-wrapper">
         <div class="toolbar">
+          <button type="button" class="lens-btn" id="lens-btn" aria-pressed="false" title="Google Lens mode: select areas to analyze">🔍 Lens</button>
           <button type="button" class="heartbeat-btn" id="heartbeat-btn" aria-pressed="false">Start heartbeat</button>
           <button type="button" class="slice-btn" id="slice-btn" aria-pressed="false">Slice view</button>
           <div class="parts-wrap">
@@ -303,6 +380,56 @@
     }
   </script>
   <script type="module" src="heart-scene.js"></script>
+  <script type="module">
+    import { LensModule } from './lens-module.js';
+    
+    // Expose lens initialization globally
+    window.initializeLensModule = async function(renderer, camera, scene, pickableMeshes) {
+      const lens = new LensModule(renderer, camera, scene, pickableMeshes);
+      
+      // Load Gemini API key from environment or prompt
+      const apiKey = import.meta.env?.VITE_GEMINI_API_KEY || localStorage.getItem('gemini-api-key');
+      if (apiKey) {
+        await lens.setGeminiKey(apiKey);
+      }
+      
+      // Try to load RAG data
+      try {
+        const csvUrls = [
+          './data-processing/heart_features.csv',
+          './data-processing/hvsmr_clinical.csv',
+          './data-processing/hvsmr_technical.csv',
+        ];
+        await lens.loadRAGData(csvUrls);
+      } catch (error) {
+        console.warn('Could not load RAG data:', error);
+      }
+      
+      // Setup lens button
+      const lensBtn = document.getElementById('lens-btn');
+      lens.lensBtn = lensBtn;
+      
+      if (lensBtn) {
+        lensBtn.addEventListener('click', () => {
+          const isActive = lens.toggle();
+          lensBtn.classList.toggle('active', isActive);
+          lensBtn.setAttribute('aria-pressed', isActive);
+          lensBtn.textContent = isActive ? '✓ Lens' : '🔍 Lens';
+          lensBtn.title = isActive ? 'Lens mode active (press ESC to exit)' : 'Google Lens mode: select areas to analyze';
+          
+          if (isActive && !apiKey) {
+            const key = prompt('Enter your Gemini API key (get one from https://aistudio.google.com/apikey):\nOr press Cancel to use basic analysis.');
+            if (key) {
+              lens.setGeminiKey(key);
+              localStorage.setItem('gemini-api-key', key);
+            }
+          }
+        });
+      }
+      
+      return lens;
+    };
+  </script>
   <script>
     (function() {
       const aboutToggle = document.getElementById('about-toggle');

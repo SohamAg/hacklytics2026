@@ -234,7 +234,7 @@ const defaultMaterial = new THREE.MeshStandardMaterial({
 });
 
 loader.load(
-  './SubTool-0-7412864.OBJ',
+  './heart_model_pat0.obj',
   (group) => {
     group.traverse((node) => {
       if (node.isMesh && node.material) {
@@ -318,6 +318,11 @@ loader.load(
         if (sliceEnabled) applySliceToMeshes(true);
       });
     });
+
+    // Initialize Lens Module
+    if (window.initializeLensModule) {
+      window.initializeLensModule(renderer, camera, scene, pickableMeshes);
+    }
   },
   undefined,
   (e) => console.error('Failed to load model', e)
