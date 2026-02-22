@@ -47,6 +47,9 @@ let heartGroupRight = null;
 let pickableMeshesRight = [];
 let heartBaseScaleRight = 1;
 let estimatedPartByMeshRight = null;
+let heatmapOverlayRight = null;
+const heatmapObjCache = {};
+const HEATMAP_OBJ_BASE = './heart_models/heatmaps_sim_vs_normal_objs/';
 let heartbeatEnabled = false;
 let pulseRestored = true;
 let sliceEnabled = false;
@@ -851,6 +854,7 @@ function setScanStatus(msg, isError) {
 // ── Right scene: load a different OBJ ────────────────────────────────────────
 function loadScanOBJ(url, meshScales, onReady) {
   if (!sceneRight) return;
+  heatmapOverlayRight = null;
   if (heartGroupRight) {
     sceneRight.remove(heartGroupRight);
     heartGroupRight = null; pickableMeshesRight = []; estimatedPartByMeshRight = null;
@@ -891,6 +895,7 @@ function loadScanOBJ(url, meshScales, onReady) {
 
 function resetRightToSimulate() {
   if (!sceneRight || !heartGroup) return;
+  heatmapOverlayRight = null;
   if (heartGroupRight) {
     sceneRight.remove(heartGroupRight);
     heartGroupRight = null; pickableMeshesRight = []; estimatedPartByMeshRight = null;
@@ -910,6 +915,7 @@ function resetRightToSimulate() {
     applyConditionScales(condSel.value, 'right');
     updateSimulateOutlines(condSel.value);
     updateSimulatePanel(condSel.value);
+    if (condSel.value.indexOf(',') === -1) loadHeatmapOverlayForCondition(condSel.value);
   } else {
     updateSimulatePanel('');
   }
@@ -940,6 +946,169 @@ function handleFileUpload(file) {
       });
     })
     .catch(err => setScanStatus(typeof err === 'string' ? err : `Error: ${err.message}`, true));
+}
+
+// ── Heatmap overlay (OBJ with vertex colors; mesh or point cloud) ───────────────
+function parseObjWithVertexColors(text) {
+  const lines = text.split(/\r?\n/);
+  const positions = [];
+  const colors = [];
+  const faces = [];
+  for (const line of lines) {
+    const parts = line.trim().split(/\s+/);
+    if (parts[0] === 'v' && parts.length >= 4) {
+      const x = parseFloat(parts[1]), y = parseFloat(parts[2]), z = parseFloat(parts[3]);
+      positions.push(x, y, z);
+      if (parts.length >= 7) {
+        const r = parseFloat(parts[4]), g = parseFloat(parts[5]), b = parseFloat(parts[6]);
+        colors.push(r, g, b);
+      } else {
+        colors.push(1, 1, 1);
+      }
+    } else if (parts[0] === 'f' && parts.length >= 4) {
+      const idx = [];
+      for (let i = 1; i < parts.length; i++) {
+        const v = parseInt(parts[i].split('/')[0], 10);
+        if (!isNaN(v)) idx.push(v - 1);
+      }
+      for (let i = 1; i < idx.length - 1; i++) {
+        faces.push(idx[0], idx[i], idx[i + 1]);
+      }
+    }
+  }
+  const nV = positions.length / 3;
+  // Point cloud (no faces): heatmap OBJs are often vertex-only with RGB
+  if (faces.length === 0 && nV > 0) {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors.length >= positions.length ? colors : Array(nV * 3).fill(1), 3));
+    return { geometry: geo, isPointCloud: true };
+  }
+  const geo = new THREE.BufferGeometry();
+  const posArr = new Float32Array(faces.length * 3);
+  const colArr = new Float32Array(faces.length * 3);
+  for (let i = 0; i < faces.length; i += 3) {
+    for (let j = 0; j < 3; j++) {
+      const k = (i + j) * 3;
+      const idx = faces[i + j] * 3;
+      posArr[k] = positions[idx]; posArr[k + 1] = positions[idx + 1]; posArr[k + 2] = positions[idx + 2];
+      if (colors.length >= positions.length) {
+        colArr[k] = colors[idx]; colArr[k + 1] = colors[idx + 1]; colArr[k + 2] = colors[idx + 2];
+      } else {
+        colArr[k] = colArr[k + 1] = colArr[k + 2] = 1;
+      }
+    }
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
+  geo.computeVertexNormals();
+  return { geometry: geo, isPointCloud: false };
+}
+
+function ensureVertexColorMaterial(obj) {
+  const geo = obj.geometry;
+  if (!geo?.attributes?.color) return;
+  if (obj.isPoints) {
+    obj.material?.dispose();
+    obj.material = new THREE.PointsMaterial({
+      vertexColors: true,
+      size: 0.015,
+      sizeAttenuation: true,
+      depthWrite: true,
+      depthTest: true,
+    });
+    return;
+  }
+  obj.material?.dispose();
+  obj.material = new THREE.MeshBasicMaterial({
+    vertexColors: true,
+    side: THREE.DoubleSide,
+    depthWrite: true,
+    depthTest: true,
+    polygonOffset: true,
+    polygonOffsetFactor: 1,
+    polygonOffsetUnits: 1,
+  });
+}
+
+function loadHeatmapOverlayForCondition(conditionValue) {
+  const condition = (conditionValue || '').trim().split(',')[0].trim();
+  if (!condition || !heartGroupRight || !sceneRight) return;
+  const url = `${HEATMAP_OBJ_BASE}simulation_${condition}_normal_heatmap.obj`;
+  if (heatmapOverlayRight) {
+    heartGroupRight.remove(heatmapOverlayRight);
+    heatmapOverlayRight.traverse(o => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) o.material.dispose();
+    });
+    heatmapOverlayRight = null;
+  }
+  if (heatmapObjCache[condition]) {
+    const group = heatmapObjCache[condition].clone(true);
+    group.traverse(o => { if (o.isMesh || o.isPoints) ensureVertexColorMaterial(o); });
+    heartGroupRight.add(group);
+    heatmapOverlayRight = group;
+    return;
+  }
+  const fileLoader = new THREE.FileLoader();
+  fileLoader.setResponseType('text');
+  fileLoader.load(url, (text) => {
+    try {
+      const parsed = parseObjWithVertexColors(text);
+      const geo = parsed.geometry;
+      const group = new THREE.Group();
+      if (parsed.isPointCloud) {
+        const mat = new THREE.PointsMaterial({
+          vertexColors: true,
+          size: 0.015,
+          sizeAttenuation: true,
+          depthWrite: true,
+          depthTest: true,
+        });
+        const points = new THREE.Points(geo, mat);
+        group.add(points);
+      } else {
+        const mat = new THREE.MeshBasicMaterial({
+          vertexColors: true,
+          side: THREE.DoubleSide,
+          depthWrite: true,
+          depthTest: true,
+          polygonOffset: true,
+          polygonOffsetFactor: 1,
+          polygonOffsetUnits: 1,
+        });
+        group.add(new THREE.Mesh(geo, mat));
+      }
+      const box = new THREE.Box3().setFromObject(group);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z) || 1;
+      const scale = 2.5 / maxDim;
+      group.position.sub(center);
+      group.scale.setScalar(scale);
+      group.scale.y *= -1;
+      heatmapObjCache[condition] = group.clone(true);
+      group.traverse(o => {
+        if (o.isMesh || o.isPoints) ensureVertexColorMaterial(o);
+      });
+      heartGroupRight.add(group);
+      heatmapOverlayRight = group;
+    } catch (e) {
+      console.warn('[HeartScape] Heatmap OBJ parse error for', condition, e);
+    }
+  }, undefined, () => {
+    console.warn('[HeartScape] Heatmap OBJ not found:', url);
+  });
+}
+
+function removeHeatmapOverlay() {
+  if (!heatmapOverlayRight || !heartGroupRight) return;
+  heartGroupRight.remove(heatmapOverlayRight);
+  heatmapOverlayRight.traverse(o => {
+    if (o.geometry) o.geometry.dispose();
+    if (o.material) o.material.dispose();
+  });
+  heatmapOverlayRight = null;
 }
 
 // ── Create right scene ────────────────────────────────────────────────────────
@@ -981,7 +1150,7 @@ fetch('./models/pca_landscape.json')
   .catch(err => console.warn('[HeartScape] pca_landscape.json:', err));
 
 // ── Model load ────────────────────────────────────────────────────────────────
-const HEART_MODEL_PATH = document.querySelector('meta[name="heart-model"]')?.getAttribute('content') || './models/pat1.obj';
+const HEART_MODEL_PATH = document.querySelector('meta[name="heart-model"]')?.getAttribute('content') || 'heart_model.obj';
 const modelUrl = (HEART_MODEL_PATH.startsWith('/') && window.location.protocol !== 'file:')
   ? window.location.origin + HEART_MODEL_PATH
   : new URL(HEART_MODEL_PATH, window.location.href).href;
@@ -1027,8 +1196,13 @@ loader.load(modelUrl, group => {
       applyConditionScales(val, 'right');
       updateSimulateOutlines(val);
       updateSimulatePanel(val);
+      if (val && val.indexOf(',') === -1) loadHeatmapOverlayForCondition(val);
+      else removeHeatmapOverlay();
     });
-    if (conditionSelect.value) applyConditionScales(conditionSelect.value, 'right');
+    if (conditionSelect.value) {
+      applyConditionScales(conditionSelect.value, 'right');
+      if (conditionSelect.value.indexOf(',') === -1) loadHeatmapOverlayForCondition(conditionSelect.value);
+    }
   }
 
   // Tab switching
