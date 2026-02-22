@@ -11,7 +11,6 @@ viewer can show "what would this heart look like with VSD+ASD?"
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -22,6 +21,15 @@ import pandas as pd
 VOL_COLS = [f"Label_{i}_vol_ml" for i in range(1, 9)]
 RATIO_COLS = ["LV_RV_ratio", "LA_RA_ratio", "AO_fraction", "LV_fraction"]
 FEATURE_COLS = VOL_COLS + ["Total_heart_vol"] + RATIO_COLS
+
+# Subset used by PCA — must match the columns the scaler/PCA were trained on
+FEATURE_ORDER = [
+    "Label_1_vol_ml",
+    "Label_2_vol_ml",
+    "Label_4_vol_ml",
+    "Label_6_vol_ml",
+    "Total_heart_vol",
+]
 
 # Condition columns in heart_features (X = present)
 CONDITION_COLS = [
@@ -34,9 +42,9 @@ CONDITION_COLS = [
     "AOPAAnastamosis", "Marfan", "CMRArtifactAO", "CMRArtifactPA",
 ]
 
-# Names for 3D viewer (Label_1 = LV, etc.)
+# Names for 3D viewer — must match OBJ group names written by mesh_rendering.py
 LABEL_NAMES = {
-    1: "LV", 2: "RV", 3: "LA", 4: "RA", 5: "AO", 6: "PA", 7: "PV", 8: "SVC",
+    1: "LV", 2: "RV", 3: "LA", 4: "RA", 5: "Aorta", 6: "PA", 7: "SVC", 8: "IVC",
 }
 
 
@@ -259,22 +267,3 @@ def export_for_viewer(
         json.dump(payload, f, indent=2)
 
 
-if __name__ == "__main__":
-    csv_path = os.path.join(os.path.dirname(__file__), "heart_features.csv")
-    if not os.path.isfile(csv_path):
-        print("heart_features.csv not found")
-        exit(1)
-    df, reference, condition_effects, condition_counts, condition_multipliers = run_pipeline(csv_path)
-    trends = discover_trends(reference, condition_effects, condition_counts)
-    print("Sample trends (condition -> >5% change vs normal):")
-    for t in trends[:10]:
-        print(f"  {t['condition']} (n={t['n']}):")
-        for d in t["deltas"][:5]:
-            print(f"    {d['feature']}: {d['pct_change']:+.1f}%")
-    out = os.path.join(os.path.dirname(__file__), "..", "models", "condition_effects.json")
-    export_for_viewer(reference, condition_multipliers, condition_counts, out)
-    print(f"\nExported {out}")
-    # Example estimate
-    est = estimate_features(["VSD", "ASD"], reference, condition_multipliers)
-    scales = scaling_factors_for_viewer(est, reference)
-    print("Example: estimate for VSD+ASD -> scaling factors for 3D:", scales)
