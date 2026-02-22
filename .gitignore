@@ -6,10 +6,12 @@ orig/
 cropped/
 scan_outputs/
 cropped_norm_data.zip
+cropped_norm.zip
 cropped_data.zip
 .DS_Store
 *.obj
 *.glb
+*.csv
 heart_models/
 __pycache__/
 *.pyc
