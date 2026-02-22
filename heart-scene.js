@@ -25,6 +25,10 @@ controls.dampingFactor = 0.04;
 controls.minDistance = 1;
 controls.maxDistance = 15;
 controls.target.set(0, 0, 0);
+controls.mouseButtons.RIGHT = null;
+
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
 
 scene.add(new THREE.AmbientLight(0xb8b8c8, 0.95));
 const key = new THREE.DirectionalLight(0xffffff, 1.35);
@@ -45,14 +49,17 @@ let heartGroupRight = null;
 let pickableMeshesRight = [];
 let heartBaseScaleRight = 1;
 let estimatedPartByMeshRight = null;
+let comparisonOutlinesOnlyHighlighted = true;  // toggle: true = only highlighted part's outline, false = all outlines
+const COMPARISON_GREEN = 0x22c55e;   // expanded (right > left)
+const COMPARISON_RED = 0xef4444;     // compressed (right < left)
 let heartbeatEnabled = false;
 let pulseRestored = true;
 let sliceEnabled = false;
 let sliceAxis = 'y';
 let slicePosition = 0;
 const slicePlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-const highlightColor = new THREE.Color(0x7eb8ff);
-const highlightIntensity = 0.75;
+const DIM_OPACITY = 0.15;
+const DIM_DARKEN = 0.18;
 
 const BEAT_PERIOD = 0.9;
 const BEAT_AMPLITUDE = 0.05;
@@ -143,17 +150,71 @@ function collectMeshes(obj, list) {
   for (const child of obj.children) collectMeshes(child, list);
 }
 
-function setHighlight(mesh, on) {
-  if (!mesh?.material) return;
-  const m = mesh.material;
-  if (m.emissive === undefined) return;
-  if (on) {
-    m.emissive.copy(highlightColor);
-    m.emissiveIntensity = highlightIntensity;
-  } else {
-    m.emissive.setHex(0x000000);
-    m.emissiveIntensity = 0;
+function ensureMaterialBaseline(mesh) {
+  const m = mesh?.material;
+  if (!m) return;
+  if (!mesh.userData._matBase) {
+    mesh.userData._matBase = {
+      color: m.color ? m.color.clone() : new THREE.Color(DEFAULT_PART_COLOR),
+      opacity: m.opacity !== undefined ? m.opacity : 1,
+      transparent: !!m.transparent,
+      emissive: m.emissive ? m.emissive.clone() : new THREE.Color(0x000000),
+      emissiveIntensity: m.emissiveIntensity ?? 0,
+      depthWrite: m.depthWrite ?? true,
+    };
   }
+}
+
+function restoreMaterialBaseline(mesh) {
+  const base = mesh?.userData?._matBase;
+  const m = mesh?.material;
+  if (!base || !m) return;
+  if (m.color) m.color.copy(base.color);
+  m.opacity = base.opacity;
+  m.transparent = base.transparent;
+  if (m.emissive) m.emissive.copy(base.emissive);
+  m.emissiveIntensity = base.emissiveIntensity;
+  m.depthWrite = base.depthWrite;
+  m.needsUpdate = true;
+}
+
+function applyFocusHighlight(selectedList) {
+  const selected = new Set(selectedList || []);
+  const applyTo = (list) => {
+    for (const mesh of list) {
+      if (!mesh?.material) continue;
+      ensureMaterialBaseline(mesh);
+      const m = mesh.material;
+      const isSel = selected.has(mesh);
+      if (!selectedList || selectedList.length === 0) {
+        restoreMaterialBaseline(mesh);
+        mesh.renderOrder = 0;
+        continue;
+      }
+      if (isSel) {
+        const base = mesh.userData._matBase;
+        if (m.color) m.color.copy(base.color);
+        m.opacity = 1;
+        m.transparent = false;
+        if (m.emissive) m.emissive.setHex(0x000000);
+        m.emissiveIntensity = 0;
+        m.depthWrite = true;
+        mesh.renderOrder = 1;
+      } else {
+        const base = mesh.userData._matBase;
+        if (m.color) m.color.copy(base.color).multiplyScalar(DIM_DARKEN);
+        m.transparent = true;
+        m.opacity = DIM_OPACITY;
+        if (m.emissive) m.emissive.setHex(0x000000);
+        m.emissiveIntensity = 0;
+        m.depthWrite = false;
+        mesh.renderOrder = 0;
+      }
+      m.needsUpdate = true;
+    }
+  };
+  applyTo(pickableMeshes);
+  if (dualViewEnabled && pickableMeshesRight.length) applyTo(pickableMeshesRight);
 }
 
 function partName(mesh) {
@@ -166,6 +227,19 @@ const PART_NAMES = ['LV', 'RV', 'LA', 'RA', 'AO', 'PA', 'PV', 'SVC'];
 const PART_NAME_TO_VOL_KEY = { LV: 'Label_1_vol_ml', RV: 'Label_2_vol_ml', LA: 'Label_3_vol_ml', RA: 'Label_4_vol_ml', AO: 'Label_5_vol_ml', PA: 'Label_6_vol_ml', PV: 'Label_7_vol_ml', SVC: 'Label_8_vol_ml' };
 // OBJ object names that map to our part keys (e.g. heart_export.obj uses "Aorta", "IVC")
 const OBJ_NAME_TO_PART = { 'Aorta': 'AO', 'IVC': 'SVC' };
+
+const PART_DESCRIPTIONS = {
+  LV: 'Left ventricle. Pumps oxygenated blood to the body via the aorta.',
+  RV: 'Right ventricle. Pumps deoxygenated blood to the lungs via the pulmonary artery.',
+  LA: 'Left atrium. Receives oxygenated blood from the lungs.',
+  RA: 'Right atrium. Receives deoxygenated blood from the body.',
+  AO: 'Aorta. Main artery carrying oxygenated blood from the left ventricle to the body.',
+  PA: 'Pulmonary artery. Carries deoxygenated blood from the right ventricle to the lungs.',
+  PV: 'Pulmonary veins. Return oxygenated blood from the lungs to the left atrium.',
+  SVC: 'Superior vena cava. Large vein returning deoxygenated blood from the upper body to the right atrium.',
+  Aorta: 'Aorta. Main artery carrying oxygenated blood from the left ventricle to the body.',
+  IVC: 'Inferior vena cava. Large vein returning deoxygenated blood from the lower body to the right atrium.',
+};
 
 // Distinct colors per segment for anatomy visualization (hex).
 // Map both part keys (LV, AO) and OBJ group names (Aorta, IVC) so colors apply regardless of loader structure.
@@ -297,6 +371,7 @@ function applyConditionScales(selectedValue, side) {
     } else {
       group.scale.setScalar(baseScale);
     }
+    group.scale.y *= -1;  // preserve vertical flip
   }
 }
 
@@ -336,14 +411,80 @@ function applySliceToMeshes(enabled) {
   });
   apply(pickableMeshes);
   if (dualViewEnabled && pickableMeshesRight.length) apply(pickableMeshesRight);
+  applyFocusHighlight(selectedMeshes);
 }
 
 function onPartSelect() {
   const select = document.getElementById('parts-select');
   const value = select?.value ?? '';
-  selectedMeshes.forEach((m) => setHighlight(m, false));
   selectedMeshes = value ? meshesByName(value) : [];
-  selectedMeshes.forEach((m) => setHighlight(m, true));
+  applyFocusHighlight(selectedMeshes);
+  updatePartTag(value || null);
+  if (dualViewEnabled) {
+    const lv = document.getElementById('condition-select-left')?.value ?? '';
+    const rv = document.getElementById('condition-select-right')?.value ?? '';
+    updateComparisonOutlines(lv, rv);
+  }
+}
+
+function updatePartTag(partName) {
+  const tag = document.getElementById('part-tag');
+  const nameEl = document.getElementById('part-tag-name');
+  const descEl = document.getElementById('part-tag-desc');
+  if (!tag || !nameEl || !descEl) return;
+  if (!partName || !partName.trim()) {
+    tag.classList.remove('visible');
+    tag.setAttribute('aria-hidden', 'true');
+    return;
+  }
+  const name = partName.trim();
+  const desc = PART_DESCRIPTIONS[name] || PART_DESCRIPTIONS[OBJ_NAME_TO_PART[name]] || 'Heart structure.';
+  nameEl.textContent = name;
+  descEl.textContent = desc;
+  tag.classList.add('visible');
+  tag.setAttribute('aria-hidden', 'false');
+}
+
+function pickPartFromMouse(event) {
+  if (event.button !== 2) return;
+  event.preventDefault();
+  if (!pickableMeshes.length) return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  const canvasX = (event.clientX - rect.left) / rect.width;
+  const canvasY = (event.clientY - rect.top) / rect.height;
+  let sc, cam;
+  if (dualViewEnabled && sceneRight && cameraRight) {
+    if (canvasX < 0.5) {
+      mouse.x = (canvasX / 0.5) * 2 - 1;
+      mouse.y = -(canvasY * 2 - 1);
+      sc = pickableMeshes;
+      cam = camera;
+    } else {
+      mouse.x = ((canvasX - 0.5) / 0.5) * 2 - 1;
+      mouse.y = -(canvasY * 2 - 1);
+      sc = pickableMeshesRight;
+      cam = cameraRight;
+    }
+  } else {
+    mouse.x = canvasX * 2 - 1;
+    mouse.y = -(canvasY * 2 - 1);
+    sc = pickableMeshes;
+    cam = camera;
+  }
+  raycaster.setFromCamera(mouse, cam);
+  const intersects = raycaster.intersectObjects(sc, true);
+  if (!intersects.length) return;
+  let obj = intersects[0].object;
+  while (obj && !sc.includes(obj)) obj = obj.parent;
+  if (!obj || !sc.includes(obj)) return;
+  const part = sc === pickableMeshesRight ? getPartForScaling(obj, 'right') : getPartForScaling(obj);
+  const name = part || partName(obj);
+  const select = document.getElementById('parts-select');
+  if (!select) return;
+  const names = getPartNames();
+  if (!names.includes(name)) return;
+  select.value = name;
+  onPartSelect();
 }
 
 // Load condition–feature data for "Simulate condition" (run data-processing/discover_trends.py to generate)
@@ -411,10 +552,19 @@ function createRightHeart(scale) {
   populateConditionOptions(rightSelect);
   const mainSelect = document.getElementById('condition-select');
   if (mainSelect?.value && leftSelect) leftSelect.value = mainSelect.value;
-  if (leftSelect) leftSelect.addEventListener('change', () => applyConditionScales(leftSelect.value, 'left'));
-  if (rightSelect) rightSelect.addEventListener('change', () => applyConditionScales(rightSelect.value, 'right'));
-  applyConditionScales(leftSelect?.value ?? '', 'left');
-  applyConditionScales(rightSelect?.value ?? '', 'right');
+
+  function onDualConditionChange() {
+    const lv = leftSelect?.value ?? '';
+    const rv = rightSelect?.value ?? '';
+    applyConditionScales(lv, 'left');
+    applyConditionScales(rv, 'right');
+    updateComparisonOutlines(lv, rv);
+    updateComparisonOverlay(lv, rv);
+    applyFocusHighlight(selectedMeshes);
+  }
+  if (leftSelect) leftSelect.addEventListener('change', onDualConditionChange);
+  if (rightSelect) rightSelect.addEventListener('change', onDualConditionChange);
+  onDualConditionChange();
 }
 
 function setDualViewUI(on) {
@@ -424,6 +574,95 @@ function setDualViewUI(on) {
   if (wrapSingle) wrapSingle.style.display = on ? 'none' : 'flex';
   if (wrapDual) wrapDual.style.display = on ? 'flex' : 'none';
   if (labels) labels.classList.toggle('visible', on);
+  const overlay = document.getElementById('comparison-overlay');
+  if (overlay) overlay.style.display = on ? 'block' : 'none';
+  if (!on) updateComparisonOutlines(null, null);
+}
+
+function removeMeshOutlines(meshes) {
+  if (!meshes) return;
+  for (const mesh of meshes) {
+    const lines = mesh.userData?.outlineLines;
+    if (lines) {
+      mesh.remove(lines);
+      if (lines.geometry) lines.geometry.dispose();
+      if (lines.material) lines.material.dispose();
+      mesh.userData.outlineLines = null;
+    }
+  }
+}
+
+function updateComparisonOutlines(leftValue, rightValue) {
+  if (!pickableMeshesRight.length || !heartGroupRight) return;
+  removeMeshOutlines(pickableMeshesRight);
+  const scalesLeft = computeScalesForConditions(leftValue ? leftValue.split(',').map(s => s.trim()).filter(Boolean) : []);
+  const scalesRight = computeScalesForConditions(rightValue ? rightValue.split(',').map(s => s.trim()).filter(Boolean) : []);
+  const onlyHighlighted = comparisonOutlinesOnlyHighlighted && selectedMeshes.length > 0;
+  const selectedSet = new Set(selectedMeshes);
+  for (const mesh of pickableMeshesRight) {
+    if (onlyHighlighted && !selectedSet.has(mesh)) continue;
+    const part = getPartForScaling(mesh, 'right');
+    if (!part || !PART_NAMES.includes(part)) continue;
+    const sL = scalesLeft[part] ?? 1;
+    const sR = scalesRight[part] ?? 1;
+    const diff = sR - sL;
+    if (Math.abs(diff) < 0.001) continue;
+    const color = diff > 0 ? COMPARISON_GREEN : COMPARISON_RED;
+    const geo = mesh.geometry;
+    if (!geo?.attributes?.position) continue;
+    const edges = new THREE.EdgesGeometry(geo, 15);
+    const mat = new THREE.LineBasicMaterial({
+      color,
+      linewidth: 3,
+      depthTest: false,
+      depthWrite: false,
+      transparent: false,
+    });
+    const lines = new THREE.LineSegments(edges, mat);
+    mesh.add(lines);
+    mesh.userData.outlineLines = lines;
+  }
+}
+
+function getComparisonData(leftValue, rightValue) {
+  const scalesLeft = computeScalesForConditions(leftValue ? leftValue.split(',').map(s => s.trim()).filter(Boolean) : []);
+  const scalesRight = computeScalesForConditions(rightValue ? rightValue.split(',').map(s => s.trim()).filter(Boolean) : []);
+  const items = [];
+  for (const p of PART_NAMES) {
+    const sL = scalesLeft[p] ?? 1;
+    const sR = scalesRight[p] ?? 1;
+    const diff = sR - sL;
+    if (Math.abs(diff) < 0.001) continue;
+    const pct = ((sR / sL - 1) * 100);
+    items.push({
+      part: p,
+      scaleLeft: sL,
+      scaleRight: sR,
+      pct: pct,
+      expanded: diff > 0,
+    });
+  }
+  return items;
+}
+
+function updateComparisonOverlay(leftValue, rightValue) {
+  const el = document.getElementById('comparison-overlay');
+  if (!el) return;
+  const items = getComparisonData(leftValue, rightValue);
+  if (!items.length) {
+    el.innerHTML = '';
+    return;
+  }
+  el.innerHTML = items
+    .map(
+      (x) =>
+        `<div class="comparison-item ${x.expanded ? 'expanded' : 'compressed'}">
+          <span class="comparison-part">${x.part}</span>
+          <span class="comparison-scale">${x.scaleRight.toFixed(2)} vs ${x.scaleLeft.toFixed(2)}</span>
+          <span class="comparison-pct">${x.pct >= 0 ? '+' : ''}${x.pct.toFixed(1)}%</span>
+        </div>`
+    )
+    .join('');
 }
 
 const loader = new OBJLoader();
@@ -461,6 +700,7 @@ loader.load(
     heartGroup = group;
     heartBaseScale = scale;
     group.scale.setScalar(scale);
+    group.scale.y *= -1;  // flip vertically
 
     pickableMeshes = [];
     collectMeshes(group, pickableMeshes);
@@ -487,6 +727,7 @@ loader.load(
         dualViewBtn.classList.toggle('active', dualViewEnabled);
         dualViewBtn.setAttribute('aria-pressed', dualViewEnabled);
         if (sliceEnabled) applySliceToMeshes(true);
+        onPartSelect();
         const w = container.clientWidth;
         const h = container.clientHeight;
         if (dualViewEnabled && cameraRight) {
@@ -500,6 +741,19 @@ loader.load(
       });
     }
 
+    const outlinesCb = document.getElementById('outlines-only-highlighted');
+    if (outlinesCb) {
+      outlinesCb.checked = comparisonOutlinesOnlyHighlighted;
+      outlinesCb.addEventListener('change', () => {
+        comparisonOutlinesOnlyHighlighted = outlinesCb.checked;
+        if (dualViewEnabled && heartGroupRight) {
+          const lv = document.getElementById('condition-select-left')?.value ?? '';
+          const rv = document.getElementById('condition-select-right')?.value ?? '';
+          updateComparisonOutlines(lv, rv);
+        }
+      });
+    }
+
     const btn = document.getElementById('heartbeat-btn');
     if (btn) {
       btn.addEventListener('click', () => {
@@ -508,6 +762,36 @@ loader.load(
         btn.textContent = heartbeatEnabled ? 'Stop heartbeat' : 'Start heartbeat';
         btn.classList.toggle('active', heartbeatEnabled);
         btn.setAttribute('aria-pressed', heartbeatEnabled);
+      });
+    }
+
+    renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
+    renderer.domElement.addEventListener('mousedown', pickPartFromMouse);
+
+    const partTag = document.getElementById('part-tag');
+    const partTagHandle = document.getElementById('part-tag-handle');
+    if (partTag && partTagHandle) {
+      let dragOffsetX = 0, dragOffsetY = 0;
+      partTagHandle.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        const rect = partTag.getBoundingClientRect();
+        const wrap = partTag.parentElement?.getBoundingClientRect();
+        if (!wrap) return;
+        dragOffsetX = e.clientX - rect.left;
+        dragOffsetY = e.clientY - rect.top;
+        const onMove = (ev) => {
+          const x = ev.clientX - wrap.left - dragOffsetX;
+          const y = ev.clientY - wrap.top - dragOffsetY;
+          partTag.style.left = `${Math.max(0, x)}px`;
+          partTag.style.top = `${Math.max(0, y)}px`;
+        };
+        const onUp = () => {
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
       });
     }
 

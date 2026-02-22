@@ -157,6 +157,15 @@
       background-position: right 0.4rem center;
     }
     .toolbar .dual-view-conditions select { min-width: 6.5rem; }
+    .toolbar .outlines-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.7rem;
+      color: #888;
+      cursor: pointer;
+    }
+    .toolbar .outlines-toggle input { cursor: pointer; }
     .viewport-labels {
       display: none;
       position: absolute;
@@ -179,6 +188,36 @@
     }
     .viewport-label.viewport-left { left: 50%; transform: translate(-100%, 0); margin-left: -0.5rem; }
     .viewport-label.viewport-right { left: 50%; margin-left: 0.5rem; }
+    .comparison-overlay {
+      display: none;
+      position: absolute;
+      left: 50%;
+      right: 0;
+      bottom: 2.5rem;
+      padding: 0.5rem 0.75rem;
+      background: rgba(0, 0, 0, 0.75);
+      border-top-left-radius: 8px;
+      max-height: 12rem;
+      overflow-y: auto;
+      font-size: 0.7rem;
+      z-index: 10;
+      pointer-events: none;
+    }
+    .comparison-overlay .comparison-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.2rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .comparison-overlay .comparison-item:last-child { border-bottom: none; }
+    .comparison-overlay .comparison-part { font-weight: 600; min-width: 2rem; }
+    .comparison-overlay .comparison-scale { color: #888; font-size: 0.65rem; }
+    .comparison-overlay .comparison-pct { font-weight: 600; margin-left: auto; }
+    .comparison-overlay .comparison-item.expanded .comparison-part,
+    .comparison-overlay .comparison-item.expanded .comparison-pct { color: #22c55e; }
+    .comparison-overlay .comparison-item.compressed .comparison-part,
+    .comparison-overlay .comparison-item.compressed .comparison-pct { color: #ef4444; }
     .slice-controls {
       display: none;
       position: absolute;
@@ -274,6 +313,42 @@
       cursor: pointer;
     }
     .chat-input-wrap button:hover { background: #3d8aff; }
+    .part-tag {
+      display: none;
+      position: absolute;
+      top: 4rem;
+      left: 0.75rem;
+      width: 200px;
+      z-index: 15;
+      background: rgba(22, 22, 26, 0.95);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      overflow: hidden;
+    }
+    .part-tag.visible { display: block; }
+    .part-tag-handle {
+      padding: 0.35rem 0.5rem;
+      font-size: 0.7rem;
+      color: rgba(255,255,255,0.4);
+      cursor: move;
+      user-select: none;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .part-tag-handle:hover { color: rgba(255,255,255,0.7); }
+    .part-tag-content { padding: 0.5rem 0.65rem 0.65rem; }
+    .part-tag-name {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 0.35rem;
+    }
+    .part-tag-desc {
+      font-size: 0.75rem;
+      line-height: 1.45;
+      color: #b0b0b0;
+      margin: 0;
+    }
   </style>
 </head>
 <body>
@@ -313,6 +388,10 @@
             <select id="condition-select-right" aria-label="Simulate condition (right heart)">
               <option value="">Baseline</option>
             </select>
+            <label class="outlines-toggle">
+              <input type="checkbox" id="outlines-only-highlighted" checked aria-label="Show comparison outlines only for highlighted part" />
+              <span>Outlines: highlighted only</span>
+            </label>
           </div>
           <div class="parts-wrap">
             <span>Highlight</span>
@@ -325,6 +404,7 @@
           <span class="viewport-label viewport-left">Left</span>
           <span class="viewport-label viewport-right">Right</span>
         </div>
+        <div class="comparison-overlay" id="comparison-overlay" style="display: none;" aria-label="Scale factors: expanded vs compressed segments on right heart"></div>
         <div class="slice-controls" id="slice-controls" aria-hidden="true">
           <label>Slice axis</label>
           <div class="axis-row">
@@ -336,8 +416,15 @@
           <input type="range" id="slice-position" min="-1" max="1" step="0.01" value="0" />
         </div>
         <div id="canvas-container"></div>
+        <div class="part-tag" id="part-tag" aria-hidden="true">
+          <div class="part-tag-handle" id="part-tag-handle">⋮⋮</div>
+          <div class="part-tag-content">
+            <div class="part-tag-name" id="part-tag-name"></div>
+            <p class="part-tag-desc" id="part-tag-desc"></p>
+          </div>
+        </div>
         <p id="load-status" class="viz-hint" style="display:none;"></p>
-        <p class="viz-hint">Drag to rotate · Scroll to zoom</p>
+        <p class="viz-hint">Drag to rotate · Scroll to zoom · Right-click part to highlight</p>
       </div>
       <aside class="chat-panel">
         <div class="chat-header">Ask about the model</div>
