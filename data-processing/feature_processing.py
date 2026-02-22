@@ -34,9 +34,16 @@ def run_pca(df: pd.DataFrame):
     return df_pca, pca, scaler
 
 
+HOLDOUT_PATIENTS = [1, 14, 16, 28, 57]
+
 if __name__ == "__main__":
     df = pd.read_csv("heart_features.csv")
-    df_pca, pca_model, scaler_model = run_pca(df)
+
+    # Exclude holdout patients so they remain unseen by the model
+    df_train = df[~df["Patient"].isin(HOLDOUT_PATIENTS)].reset_index(drop=True)
+    print(f"Training PCA on {len(df_train)} patients (held out: {HOLDOUT_PATIENTS})")
+
+    df_pca, pca_model, scaler_model = run_pca(df_train)
 
     plt.figure(figsize=(8, 6))
     sns.scatterplot(
@@ -54,3 +61,9 @@ if __name__ == "__main__":
     joblib.dump(scaler_model, "../models/scaler_model.pkl")
     df_pca.to_csv("../models/pca_dataset.csv", index=False)
     print("Models saved to ../models/")
+
+    # Also save holdout metadata for reference
+    import json
+    with open("../models/holdout_patients.json", "w") as f:
+        json.dump({"holdout_patient_ids": HOLDOUT_PATIENTS}, f, indent=2)
+    print(f"Holdout list saved: {HOLDOUT_PATIENTS}")

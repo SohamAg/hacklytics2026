@@ -1,0 +1,207 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{parskip}
+
+\geometry{margin=1.1in}
+
+\definecolor{accent}{RGB}{52, 120, 246}
+\titleformat{\section}{\large\bfseries\color{accent}}{}{0em}{}[\titlerule]
+\titleformat{\subsection}{\normalsize\bfseries}{}{0em}{}
+
+\title{\textbf{Mathematical Foundations}\\[0.4em]
+       \large Congenital Heart Disease Morphology Explorer}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\noindent
+All operations are interpretable and closed-form.
+No deep learning is used. The system is entirely data-driven from
+real congenital heart MRI segmentations (HVSMR-2.0, $n = 60$ patients,
+8 labeled anatomical structures per patient).
+
+%% ──────────────────────────────────────────────────────────────
+\section{Feature Extraction}
+
+Each patient's segmentation volume is converted to physical units.
+Let $N_{p,i}$ be the voxel count for anatomical label $i$ in patient $p$,
+and let $(s_x, s_y, s_z)$ be the voxel spacing in mm.
+
+\begin{equation}
+    V_{p,i} = \frac{N_{p,i} \cdot s_x \cdot s_y \cdot s_z}{1000}
+    \quad [\text{mL}]
+\end{equation}
+
+Derived ratio features are also computed:
+\[
+    \text{LV/RV ratio} = \frac{V_{p,1}}{V_{p,2}}, \qquad
+    \text{AO fraction} = \frac{V_{p,5}}{\sum_i V_{p,i}}, \qquad
+    \text{LV fraction} = \frac{V_{p,1}}{\sum_i V_{p,i}}
+\]
+
+The full feature vector for patient $p$ is:
+\[
+    \mathbf{x}_p = \bigl(V_{p,1},\, V_{p,2},\, \ldots,\, V_{p,8},\;
+                        V^\text{total}_p,\;
+                        \text{LV/RV},\; \text{LA/RA},\;
+                        \text{AO}_\text{frac},\; \text{LV}_\text{frac}
+                   \bigr)
+    \;\in\; \mathbb{R}^{13}
+\]
+
+%% ──────────────────────────────────────────────────────────────
+\section{Reference Heart (Normal Cohort)}
+
+The reference vector $\mathbf{r}$ is the mean feature vector over patients
+flagged as \textit{Normal} with no co-occurring defects:
+\[
+    \mathcal{P}_\text{N} = \bigl\{ p \;\big|\;
+        \texttt{Normal}_p = 1 \;\wedge\; \textstyle\sum_{c \neq \text{N}} \mathbf{1}[c_p=1] = 0
+    \bigr\}
+\]
+
+\begin{equation}
+    r_f = \frac{1}{|\mathcal{P}_\text{N}|} \sum_{p \in \mathcal{P}_\text{N}} x_{p,f}
+    \qquad \forall\, f \in \mathbf{x}
+\end{equation}
+
+%% ──────────────────────────────────────────────────────────────
+\section{Condition Effects and Multipliers}
+
+For each clinical condition $c$ (e.g.\ VSD, SevereDilation), define
+$\mathcal{P}_c = \{p \mid c_p = 1\}$.
+The \emph{condition mean} is:
+\[
+    \mu_{c,f} = \frac{1}{|\mathcal{P}_c|} \sum_{p \in \mathcal{P}_c} x_{p,f}
+\]
+
+The \emph{multiplicative effect} of condition $c$ on feature $f$ relative
+to the normal reference is:
+\begin{equation}
+    m_{c,f} = \operatorname{clip}\!\left(\frac{\mu_{c,f}}{r_f},\; 0.3,\; 3.0\right)
+\end{equation}
+
+A value $m_{c,f} > 1$ means patients with condition $c$ have larger
+values of feature $f$ than the normal cohort; $m_{c,f} < 1$ means smaller.
+
+%% ──────────────────────────────────────────────────────────────
+\section{Multi-Condition Blending (Geometric Mean)}
+
+When a user selects a set of conditions $\mathcal{C}$, the multipliers are
+combined using the \textbf{geometric mean in log-space}, which prevents any
+single condition from dominating and preserves the multiplicative structure:
+
+\begin{equation}
+    \hat{g}_f(\mathcal{C})
+        = \exp\!\left(\frac{1}{|\mathcal{C}|} \sum_{c \in \mathcal{C}} \log m_{c,f}\right)
+\end{equation}
+
+The estimated feature vector is then:
+\begin{equation}
+    \hat{x}_f = r_f \cdot \hat{g}_f(\mathcal{C})
+\end{equation}
+
+This is the core generative step. It is empirical (grounded in dataset statistics),
+not mechanistic — it models \emph{what the anatomy looks like} for a condition,
+not why.
+
+%% ──────────────────────────────────────────────────────────────
+\section{PCA Embedding (Morphology Space)}
+
+Five volumetric features are selected for embedding:
+$\mathbf{z} = (V_1, V_2, V_4, V_6, V^\text{total}) \in \mathbb{R}^5$
+(LV, RV, RA, PA, Total heart volume).
+
+\paragraph{Standardization.}
+Each feature is standardized using mean $\bar{\mu}_f$ and std $\bar{\sigma}_f$
+learned from the full dataset:
+\begin{equation}
+    \tilde{z}_f = \frac{\hat{x}_f - \bar{\mu}_f}{\bar{\sigma}_f}
+\end{equation}
+
+\paragraph{PCA Projection.}
+Let $\mathbf{W} \in \mathbb{R}^{5 \times 2}$ be the matrix of the top-2
+principal component loadings. The morphology embedding is:
+\begin{equation}
+    \mathbf{p} = \mathbf{W}^\top \tilde{\mathbf{z}} \in \mathbb{R}^2,
+    \qquad \mathbf{p} = (p_1,\, p_2) = (\text{PC1},\, \text{PC2})
+\end{equation}
+
+The learned PCA captures \textbf{86\%} of total anatomical variance in 2 dimensions.
+
+%% ──────────────────────────────────────────────────────────────
+\section{Similarity Retrieval}
+
+Every real patient $i$ has a precomputed embedding $\mathbf{p}_i \in \mathbb{R}^2$.
+For the synthetic morphology $\mathbf{p}$, the $k$ most similar real patients
+are retrieved by Euclidean distance:
+
+\begin{equation}
+    d_i = \|\mathbf{p} - \mathbf{p}_i\|_2, \qquad
+    \mathcal{N}_k(\mathbf{p}) = \underset{i}{\operatorname{argsort}}\; d_i \;\big[\,{:}\,k\,\big]
+\end{equation}
+
+Default: $k = 3$.
+
+%% ──────────────────────────────────────────────────────────────
+\section{Severity Score}
+
+The first principal component PC1 captures the dominant axis of anatomical
+variation across the dataset. A normalized severity score is computed by
+mapping PC1 to $[0, 1]$:
+
+\begin{equation}
+    \text{severity} = \operatorname{clip}\!\left(
+        \frac{p_1 - \min_i(p_{1,i})}{\max_i(p_{1,i}) - \min_i(p_{1,i})},\; 0,\; 1
+    \right)
+\end{equation}
+
+This score represents \emph{structural distance from normal along the principal
+axis}, not clinical severity.
+
+%% ──────────────────────────────────────────────────────────────
+\section{Mesh Scaling for 3D Visualization}
+
+The frontend loads a static reference OBJ mesh (8 named groups, one per structure).
+For each structure $i$, an isotropic scale factor is computed by converting the
+estimated \emph{volume} ratio to a \emph{linear} scale factor via the cube root:
+
+\begin{equation}
+    s_i = \operatorname{clip}\!\left(\frac{\hat{x}_i}{r_i},\; 0.2,\; 5.0\right)^{\!1/3}
+\end{equation}
+
+The cube root arises because if a mesh is scaled uniformly by $s_i$ in all
+three spatial dimensions, its enclosed volume scales as $s_i^3$. Therefore,
+to achieve the desired volume ratio $\hat{x}_i / r_i$, the mesh scale must be
+the cube root of that ratio.
+
+The Three.js viewer applies $s_i$ to each OBJ group independently.
+
+%% ──────────────────────────────────────────────────────────────
+\section{Summary Table}
+
+\begin{center}
+\begin{tabular}{llll}
+\toprule
+\textbf{Step} & \textbf{Input} & \textbf{Operation} & \textbf{Output} \\
+\midrule
+Feature extraction & NIfTI voxels & $V = N \cdot s^3 / 1000$ & $\mathbf{x}_p \in \mathbb{R}^{13}$ \\
+Reference heart    & Normal cohort $\mathcal{P}_N$ & Column mean & $\mathbf{r} \in \mathbb{R}^{13}$ \\
+Condition effect   & Cohort $\mathcal{P}_c$ & Column mean $\to$ ratio & $m_{c,f} \in [0.3, 3.0]$ \\
+Blending           & Selected $\mathcal{C}$ & Geometric mean & $\hat{\mathbf{x}} \in \mathbb{R}^{13}$ \\
+Standardize        & $\hat{\mathbf{x}}$, scaler & $(\hat{x} - \bar\mu)/\bar\sigma$ & $\tilde{\mathbf{z}} \in \mathbb{R}^5$ \\
+PCA embed          & $\tilde{\mathbf{z}}$, $\mathbf{W}$ & $\mathbf{W}^\top \tilde{\mathbf{z}}$ & $\mathbf{p} \in \mathbb{R}^2$ \\
+Similarity         & $\mathbf{p}$, $\{\mathbf{p}_i\}$ & Euclidean $k$-NN & $\mathcal{N}_3(\mathbf{p})$ \\
+Severity           & $p_1$ & Min-max normalize & score $\in [0, 1]$ \\
+Mesh scale         & $\hat{x}_i$, $r_i$ & $(\hat{x}_i/r_i)^{1/3}$ & $s_i \in \mathbb{R}^+$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\end{document}

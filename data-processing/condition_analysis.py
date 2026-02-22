@@ -22,14 +22,8 @@ VOL_COLS = [f"Label_{i}_vol_ml" for i in range(1, 9)]
 RATIO_COLS = ["LV_RV_ratio", "LA_RA_ratio", "AO_fraction", "LV_fraction"]
 FEATURE_COLS = VOL_COLS + ["Total_heart_vol"] + RATIO_COLS
 
-# Subset used by PCA — must match the columns the scaler/PCA were trained on
-FEATURE_ORDER = [
-    "Label_1_vol_ml",
-    "Label_2_vol_ml",
-    "Label_4_vol_ml",
-    "Label_6_vol_ml",
-    "Total_heart_vol",
-]
+# All 9 volume features used by PCA and VectorAI — full anatomical resolution
+FEATURE_ORDER = [f"Label_{i}_vol_ml" for i in range(1, 9)] + ["Total_heart_vol"]
 
 # Condition columns in heart_features (X = present)
 CONDITION_COLS = [
