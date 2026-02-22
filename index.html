@@ -375,7 +375,8 @@
     {
       "imports": {
         "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+        "@google/generative-ai": "https://unpkg.com/@google/generative-ai@0.11.4/dist/index.mjs"
       }
     }
   </script>
@@ -387,8 +388,8 @@
     window.initializeLensModule = async function(renderer, camera, scene, pickableMeshes) {
       const lens = new LensModule(renderer, camera, scene, pickableMeshes);
       
-      // Load Gemini API key from environment or prompt
-      const apiKey = import.meta.env?.VITE_GEMINI_API_KEY || localStorage.getItem('gemini-api-key');
+      // Load Gemini API key from localStorage only
+      const apiKey = localStorage.getItem('gemini-api-key');
       if (apiKey) {
         await lens.setGeminiKey(apiKey);
       }
@@ -417,11 +418,16 @@
           lensBtn.textContent = isActive ? '✓ Lens' : '🔍 Lens';
           lensBtn.title = isActive ? 'Lens mode active (press ESC to exit)' : 'Google Lens mode: select areas to analyze';
           
-          if (isActive && !apiKey) {
+          if (isActive && !lens.geminiModel) {
             const key = prompt('Enter your Gemini API key (get one from https://aistudio.google.com/apikey):\nOr press Cancel to use basic analysis.');
             if (key) {
               lens.setGeminiKey(key);
-              localStorage.setItem('gemini-api-key', key);
+              if (lens.geminiModel) {
+                localStorage.setItem('gemini-api-key', key);
+              } else {
+                localStorage.removeItem('gemini-api-key');
+                alert('Invalid API key. Please try again or get a new key from https://aistudio.google.com/apikey');
+              }
             }
           }
         });

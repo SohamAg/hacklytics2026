@@ -4,6 +4,7 @@
  */
 
 import * as THREE from 'three';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export class LensModule {
   constructor(renderer, camera, scene, pickableMeshes) {
@@ -25,15 +26,18 @@ export class LensModule {
     this.selectionCanvas = null;
     this.selectionCtx = null;
     this.selectedMeshes = [];
-    this.ragData = null;
-    this.geminiKey = null;
+    this.geminiModel = null;
     this.lensBtn = null;
+
+    // Rate limit / queue management
+    this.requestQueue = Promise.resolve();
+    this.analysisCache = new Map();
     
-    this.init();
+    this.initCanvas();
+    this.initGemini();
   }
 
-  init() {
-    // Create overlay canvas for selection visualization
+  initCanvas() {
     this.selectionCanvas = document.createElement('canvas');
     this.selectionCanvas.id = 'lens-selection-canvas';
     this.selectionCanvas.style.cssText = `
@@ -54,14 +58,12 @@ export class LensModule {
     
     this.selectionCtx = this.selectionCanvas.getContext('2d');
     
-    // Event listeners
     this.selectionCanvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
     this.selectionCanvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
     this.selectionCanvas.addEventListener('mouseup', (e) => this.onMouseUp(e));
     
     window.addEventListener('resize', () => this.resizeSelectionCanvas());
     
-    // ESC key to exit lens mode
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.active) {
         this.deactivate();
@@ -69,47 +71,37 @@ export class LensModule {
     });
   }
 
+  initGemini() {
+    const apiKey = prompt('Enter your Gemini API key (get one from https://aistudio.google.com/apikey):');
+    if (apiKey) {
+      this.setGeminiKey(apiKey);
+    }
+  }
+
+  setGeminiKey(key) {
+    if (!key || typeof key !== 'string' || key.trim().length === 0) {
+      console.warn('Invalid API key');
+      return false;
+    }
+    
+    try {
+      const genAI = new GoogleGenerativeAI(key);
+      // Using gemini-2.0-flash-lite for higher free-tier rate limits
+      this.geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+      console.log('Gemini API initialized successfully');
+      return true;
+    } catch (error) {
+      console.error('Failed to initialize Gemini API:', error);
+      this.geminiModel = null;
+      return false;
+    }
+  }
+
   resizeSelectionCanvas() {
     if (!this.selectionCanvas) return;
     const container = this.selectionCanvas.parentElement;
     this.selectionCanvas.width = container.clientWidth;
     this.selectionCanvas.height = container.clientHeight;
-  }
-
-  async setGeminiKey(key) {
-    this.geminiKey = key;
-  }
-
-  async loadRAGData(csvUrls) {
-    try {
-      this.ragData = {};
-      for (const url of csvUrls) {
-        const response = await fetch(url);
-        const csvText = await response.text();
-        const fileName = url.split('/').pop();
-        this.ragData[fileName] = this.parseCSV(csvText);
-      }
-      console.log('RAG data loaded:', this.ragData);
-    } catch (error) {
-      console.error('Failed to load RAG data:', error);
-    }
-  }
-
-  parseCSV(csvText) {
-    const lines = csvText.trim().split('\n');
-    const headers = lines[0].split(',').map(h => h.trim());
-    const data = [];
-    
-    for (let i = 1; i < lines.length; i++) {
-      const row = {};
-      const values = lines[i].split(',');
-      headers.forEach((header, idx) => {
-        row[header] = values[idx]?.trim() || '';
-      });
-      data.push(row);
-    }
-    
-    return data;
   }
 
   toggle() {
@@ -125,11 +117,9 @@ export class LensModule {
     this.active = false;
     if (this.selectionCanvas) {
       this.selectionCanvas.style.display = 'none';
-      // Clear any ongoing selection
       this.isSelecting = false;
       this.selectionCtx.clearRect(0, 0, this.selectionCanvas.width, this.selectionCanvas.height);
     }
-    // Update button state
     if (this.lensBtn) {
       this.lensBtn.classList.remove('active');
       this.lensBtn.setAttribute('aria-pressed', 'false');
@@ -139,7 +129,6 @@ export class LensModule {
 
   onMouseDown(e) {
     if (!this.active) return;
-    
     this.isSelecting = true;
     const rect = this.selectionCanvas.getBoundingClientRect();
     this.startX = e.clientX - rect.left;
@@ -148,21 +137,17 @@ export class LensModule {
 
   onMouseMove(e) {
     if (!this.isSelecting) return;
-    
     const rect = this.selectionCanvas.getBoundingClientRect();
     this.endX = e.clientX - rect.left;
     this.endY = e.clientY - rect.top;
-    
     this.drawSelection();
   }
 
   drawSelection() {
     if (!this.selectionCtx) return;
     
-    // Clear canvas
     this.selectionCtx.clearRect(0, 0, this.selectionCanvas.width, this.selectionCanvas.height);
     
-    // Draw selection rectangle
     const minX = Math.min(this.startX, this.endX);
     const minY = Math.min(this.startY, this.endY);
     const width = Math.abs(this.endX - this.startX);
@@ -172,24 +157,20 @@ export class LensModule {
     this.selectionCtx.lineWidth = 2;
     this.selectionCtx.strokeRect(minX, minY, width, height);
     
-    // Draw semi-transparent fill
     this.selectionCtx.fillStyle = 'rgba(126, 184, 255, 0.1)';
     this.selectionCtx.fillRect(minX, minY, width, height);
     
-    // Draw corner dots
     this.selectionCtx.fillStyle = 'rgba(126, 184, 255, 0.8)';
-    this.selectionCtx.beginPath();
-    this.selectionCtx.arc(minX, minY, 3, 0, Math.PI * 2);
-    this.selectionCtx.fill();
-    this.selectionCtx.beginPath();
-    this.selectionCtx.arc(minX + width, minY, 3, 0, Math.PI * 2);
-    this.selectionCtx.fill();
-    this.selectionCtx.beginPath();
-    this.selectionCtx.arc(minX, minY + height, 3, 0, Math.PI * 2);
-    this.selectionCtx.fill();
-    this.selectionCtx.beginPath();
-    this.selectionCtx.arc(minX + width, minY + height, 3, 0, Math.PI * 2);
-    this.selectionCtx.fill();
+    [
+      [minX, minY],
+      [minX + width, minY],
+      [minX, minY + height],
+      [minX + width, minY + height],
+    ].forEach(([x, y]) => {
+      this.selectionCtx.beginPath();
+      this.selectionCtx.arc(x, y, 3, 0, Math.PI * 2);
+      this.selectionCtx.fill();
+    });
   }
 
   async onMouseUp(e) {
@@ -198,7 +179,6 @@ export class LensModule {
     this.isSelecting = false;
     this.selectionCtx.clearRect(0, 0, this.selectionCanvas.width, this.selectionCanvas.height);
     
-    // Get selected meshes via raycasting
     const minX = Math.min(this.startX, this.endX);
     const minY = Math.min(this.startY, this.endY);
     const maxX = Math.max(this.startX, this.endX);
@@ -208,16 +188,15 @@ export class LensModule {
     
     if (this.selectedMeshes.length > 0) {
       const info = this.getSelectedMeshesInfo();
-      await this.showResultsWithAI(info, e.clientX, e.clientY);
+      this.highlightSelectedMeshes();
+      await this.showResults(info, e.clientX, e.clientY);
     }
   }
 
   pickMeshesByArea(minX, minY, maxX, maxY) {
-    const selected = [];
     const centerX = (minX + maxX) / 2;
     const centerY = (minY + maxY) / 2;
     
-    // Cast rays from multiple points in the selection area
     const points = [
       [centerX, centerY],
       [minX, minY],
@@ -240,163 +219,160 @@ export class LensModule {
       }
     }
     
-    return Array.from(hitMeshes).slice(0, 5); // Limit to 5 meshes
+    return Array.from(hitMeshes).slice(0, 5);
   }
 
   getSelectedMeshesInfo() {
-    const info = [];
-    for (const mesh of this.selectedMeshes) {
-      const name = mesh.name?.trim() || 'Unknown part';
-      const geometry = mesh.geometry;
-      const vertices = geometry?.attributes?.position?.count || 0;
-      
-      info.push({
-        name,
-        vertices,
-        material: mesh.material?.color?.getHexString?.() || 'default',
-      });
-    }
     return {
       count: this.selectedMeshes.length,
-      parts: info,
+      parts: this.selectedMeshes.map(mesh => ({
+        name: mesh.name?.trim() || 'Unknown part',
+        vertices: mesh.geometry?.attributes?.position?.count || 0,
+      })),
     };
   }
 
-  async showResultsWithAI(info, cursorX, cursorY) {
+  highlightSelectedMeshes() {
+    // Store original materials
+    const originalMaterials = new Map();
+    
+    for (const mesh of this.selectedMeshes) {
+      originalMaterials.set(mesh, mesh.material);
+      
+      // Create highlight material
+      const highlightMaterial = new THREE.MeshPhongMaterial({
+        color: 0x7eb8ff,
+        emissive: 0x4da6ff,
+        emissiveIntensity: 0.5,
+        wireframe: false,
+      });
+      
+      mesh.material = highlightMaterial;
+    }
+    
+    // Restore original materials after 2 seconds
+    setTimeout(() => {
+      for (const mesh of this.selectedMeshes) {
+        if (originalMaterials.has(mesh)) {
+          mesh.material = originalMaterials.get(mesh);
+        }
+      }
+    }, 2000);
+    
+    // Request render
+    this.renderer.render(this.scene, this.camera);
+  }
+
+  async showResults(info, cursorX, cursorY) {
     const popup = this.createPopup(cursorX, cursorY);
     popup.classList.add('loading');
     popup.querySelector('.popup-content p').textContent = 'Analyzing...';
-    
     document.body.appendChild(popup);
     
     try {
-      const analysis = await this.analyzeWithGemini(info);
+      let analysis;
+      if (this.geminiModel) {
+        analysis = await this.queueAnalysis(info);
+      } else {
+        analysis = this.generateFallbackAnalysis(info);
+      }
       popup.classList.remove('loading');
-      popup.querySelector('.popup-content p').innerHTML = this.formatAnalysis(analysis);
+      popup.querySelector('.popup-content p').innerHTML = analysis;
     } catch (error) {
-      console.error('AI analysis failed:', error);
+      console.error('Analysis error:', error);
       popup.classList.remove('loading');
       popup.querySelector('.popup-content p').innerHTML = `
         <strong>Selection Analysis</strong><br>
         ${info.parts.map(p => `<strong>${p.name}</strong><br>Vertices: ${p.vertices}`).join('<br>')}
         <hr style="margin: 0.5rem 0; border: none; border-top: 1px solid rgba(255,255,255,0.1);">
-        <em>AI analysis unavailable. Make sure GEMINI_API_KEY is set.</em>
+        <em>AI analysis unavailable. Check your API key.</em>
       `;
     }
   }
 
-  async analyzeWithGemini(selectionInfo) {
-    if (!this.geminiKey) {
-      // Fallback analysis
-      return this.generateBasicAnalysis(selectionInfo);
-    }
-    
-    const context = this.buildRAGContext();
-    const prompt = this.buildPrompt(selectionInfo, context);
-    
-    try {
-      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + this.geminiKey, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{ text: prompt }]
-          }],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 256,
-          }
-        })
-      });
-      
-      const data = await response.json();
-      if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-        return data.candidates[0].content.parts[0].text;
-      }
-      return this.generateBasicAnalysis(selectionInfo);
-    } catch (error) {
-      console.error('Gemini API error:', error);
-      return this.generateBasicAnalysis(selectionInfo);
-    }
+  /**
+   * Queues requests so they run one at a time,
+   * preventing bursts that trigger 429 rate limit errors.
+   */
+  queueAnalysis(info) {
+    this.requestQueue = this.requestQueue.then(() => this.analyzeWithGemini(info));
+    return this.requestQueue;
   }
 
-  buildRAGContext() {
-    if (!this.ragData) return '';
-    
-    let context = 'Available data:\n';
-    for (const [fileName, data] of Object.entries(this.ragData)) {
-      context += `\n${fileName}:\n`;
-      if (Array.isArray(data)) {
-        context += `Rows: ${data.length}\n`;
-        if (data.length > 0) {
-          const firstRow = data[0];
-          context += `Columns: ${Object.keys(firstRow).join(', ')}\n`;
-          // Add sample data points
-          for (let i = 0; i < Math.min(2, data.length); i++) {
-            context += `Sample: ${JSON.stringify(data[i])}\n`;
-          }
-        }
-      }
+  /**
+   * Calls Gemini with retry + exponential backoff on 429 errors.
+   * Also caches results so identical selections skip the API entirely.
+   */
+  async analyzeWithGemini(info, retries = 3, baseDelay = 1000) {
+    // Build a stable cache key from sorted part names
+    const cacheKey = info.parts.map(p => p.name).sort().join('|');
+    if (this.analysisCache.has(cacheKey)) {
+      return this.analysisCache.get(cacheKey);
     }
-    
-    return context;
-  }
 
-  buildPrompt(selectionInfo, ragContext) {
-    const partsDesc = selectionInfo.parts
+    const partsDesc = info.parts
       .map(p => `- ${p.name} (${p.vertices} vertices)`)
       .join('\n');
-    
-    return `You are a cardiac anatomy expert analyzing a 3D heart model visualization.
 
-The user has selected the following parts:
+    const prompt = `Analyze these selected heart parts:
 ${partsDesc}
 
-${ragContext}
+Provide a 2 sentence analysis about what these structures are and their clinical significance.`;
 
-Provide a brief (2-3 sentences), informative analysis about the selected heart parts. Include:
-1. What anatomical structure this is
-2. Its clinical significance
-3. Any relevant observations from the available data
+    for (let attempt = 0; attempt < retries; attempt++) {
+      try {
+        const result = await this.geminiModel.generateContent({
+          contents: [{ parts: [{ text: prompt }] }]
+        });
 
-Keep the response concise and educational.`;
+        const text = result.response.text();
+        const html = `<strong>AI Analysis</strong>
+          <hr style="margin: 0.5rem 0; border: none; border-top: 1px solid rgba(255,255,255,0.1);">
+          <p style="margin: 0.5rem 0;">${text}</p>`;
+
+        // Cache the successful response
+        this.analysisCache.set(cacheKey, html);
+        return html;
+
+      } catch (error) {
+        const isRateLimit = error?.status === 429 || error?.message?.includes('429');
+        const isLastAttempt = attempt === retries - 1;
+
+        if (isRateLimit && !isLastAttempt) {
+          const waitMs = baseDelay * Math.pow(2, attempt); // 1s, 2s, 4s
+          console.warn(`Rate limit hit. Retrying in ${waitMs}ms... (attempt ${attempt + 1}/${retries})`);
+          await new Promise(res => setTimeout(res, waitMs));
+          continue;
+        }
+
+        console.error('Gemini error:', error);
+        return this.generateFallbackAnalysis(info);
+      }
+    }
   }
 
-  generateBasicAnalysis(selectionInfo) {
-    const partsText = selectionInfo.parts
-      .map(p => `\n<strong>${p.name}</strong>\nVertices: ${p.vertices}`)
-      .join('\n');
-    
+  generateFallbackAnalysis(info) {
     const cardiacParts = {
       'atrium': 'Upper chamber that receives blood',
       'ventricle': 'Lower chamber that pumps blood',
-      'valve': 'Controls blood flow through chambers',
+      'valve': 'Controls blood flow between chambers',
       'vessel': 'Blood vessel carrying blood',
       'apex': 'Pointed bottom tip of the heart',
       'septum': 'Wall dividing left and right chambers',
     };
     
     let description = '<strong>Selected Parts:</strong>';
-    for (const part of selectionInfo.parts) {
-      description += `\n<strong>${part.name}</strong>`;
+    for (const part of info.parts) {
+      description += `<br><strong>${part.name}</strong>`;
       for (const [key, val] of Object.entries(cardiacParts)) {
         if (part.name.toLowerCase().includes(key)) {
-          description += `\n${val}`;
+          description += `<br>${val}`;
           break;
         }
       }
-      description += `\nGeometry: ${part.vertices} vertices`;
+      description += `<br>Vertices: ${part.vertices}`;
     }
-    
     return description;
-  }
-
-  formatAnalysis(analysis) {
-    return `
-      <strong>AI Analysis</strong>
-      <hr style="margin: 0.5rem 0; border: none; border-top: 1px solid rgba(255,255,255,0.1);">
-      <p style="margin: 0.5rem 0;">${analysis}</p>
-    `;
   }
 
   createPopup(cursorX, cursorY) {
@@ -405,21 +381,43 @@ Keep the response concise and educational.`;
     popup.innerHTML = `
       <div class="popup-content">
         <div class="popup-header">
-          <h3>Selection Analysis</h3>
+          <h3>Analysis</h3>
           <button class="popup-close">&times;</button>
         </div>
-        <p>Loading...</p>
+        <p></p>
       </div>
     `;
     
-    const closeBtn = popup.querySelector('.popup-close');
-    closeBtn.addEventListener('click', () => popup.remove());
+    popup.querySelector('.popup-close').addEventListener('click', () => popup.remove());
+    popup.style.left = (cursorX + 15) + 'px';
+    popup.style.top = (cursorY + 15) + 'px';
     
-    // Position near cursor with some offset
-    const offsetX = 15;
-    const offsetY = 15;
-    popup.style.left = (cursorX + offsetX) + 'px';
-    popup.style.top = (cursorY + offsetY) + 'px';
+    // Add drag functionality
+    const header = popup.querySelector('.popup-header');
+    let offsetX = 0;
+    let offsetY = 0;
+    let isDragging = false;
+    
+    header.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      const rect = popup.getBoundingClientRect();
+      offsetX = e.clientX - rect.left;
+      offsetY = e.clientY - rect.top;
+      header.style.cursor = 'grabbing';
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      popup.style.left = (e.clientX - offsetX) + 'px';
+      popup.style.top = (e.clientY - offsetY) + 'px';
+    });
+    
+    document.addEventListener('mouseup', () => {
+      isDragging = false;
+      header.style.cursor = 'grab';
+    });
+    
+    header.style.cursor = 'grab';
     
     return popup;
   }
