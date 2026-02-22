@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="heart-model" content="./heart_models/heart_model.obj" />
+  <meta name="heart-model" content="./models/pat1.obj" />
   <title>HeartScape — Interactive 3D Cardiac Visualization</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -18,577 +18,429 @@
       overflow: hidden;
       -webkit-font-smoothing: antialiased;
     }
-    .app {
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-    }
+    .app { display: flex; flex-direction: column; height: 100vh; }
+
+    /* ── Header ── */
     .header {
       flex-shrink: 0;
-      padding: 0.75rem 1.25rem;
-      background: rgba(18, 18, 20, 0.95);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 0.6rem 1.1rem;
+      background: rgba(18,18,20,0.97);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 1rem;
     }
-    .brand {
-      display: flex;
-      align-items: baseline;
-      gap: 0.75rem;
-    }
-    .brand h1 {
-      font-size: 1.375rem;
-      font-weight: 700;
-      letter-spacing: -0.03em;
-      color: #fff;
-    }
-    .brand .tagline {
-      font-size: 0.8125rem;
-      color: #888;
-      font-weight: 400;
-    }
+    .brand { display: flex; align-items: baseline; gap: 0.65rem; }
+    .brand h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.03em; color: #fff; }
+    .brand .tagline { font-size: 0.75rem; color: #666; }
+    .header-nav { display: flex; align-items: center; gap: 0.75rem; }
     .about-toggle {
-      font-family: inherit;
-      font-size: 0.75rem;
-      font-weight: 500;
-      color: #7a7a7a;
-      background: transparent;
-      border: none;
-      cursor: pointer;
-      padding: 0.35rem 0.5rem;
-      border-radius: 6px;
+      font-family: inherit; font-size: 0.72rem; font-weight: 500;
+      color: #666; background: transparent; border: none; cursor: pointer;
+      padding: 0.3rem 0.45rem; border-radius: 5px;
     }
-    .header-nav { display: flex; align-items: center; gap: 1rem; }
-    .nav-link { font-size: 0.75rem; color: #7a7a7a; text-decoration: none; }
-    .nav-link:hover { color: #ccc; }
     .about-toggle:hover { color: #ccc; background: rgba(255,255,255,0.06); }
     .about-panel {
       display: none;
-      padding: 1rem 1.25rem;
-      background: rgba(18, 18, 20, 0.98);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-      max-height: 40vh;
-      overflow-y: auto;
+      padding: 0.85rem 1.1rem;
+      background: rgba(18,18,20,0.98);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      max-height: 35vh; overflow-y: auto;
     }
     .about-panel.visible { display: block; }
-    .about-panel p {
-      font-size: 0.8125rem;
-      line-height: 1.6;
-      color: #b0b0b0;
-      margin-bottom: 0.75rem;
-    }
+    .about-panel p { font-size: 0.78rem; line-height: 1.6; color: #a0a0a0; margin-bottom: 0.6rem; }
     .about-panel p:last-child { margin-bottom: 0; }
-    .main {
-      display: flex;
-      flex: 1;
-      min-height: 0;
-    }
+
+    /* ── Main layout ── */
+    .main { display: flex; flex: 1; min-height: 0; }
+
+    /* ── Left toolbar ── */
     .left-toolbar {
-      width: 200px;
-      flex-shrink: 0;
-      display: flex;
-      flex-direction: column;
-      background: rgba(22, 22, 26, 0.98);
-      border-right: 1px solid rgba(255,255,255,0.08);
-      padding: 0.75rem 0;
-      gap: 0;
-      overflow-y: auto;
+      width: 168px; flex-shrink: 0;
+      display: flex; flex-direction: column;
+      background: rgba(22,22,26,0.98);
+      border-right: 1px solid rgba(255,255,255,0.07);
+      padding: 0.65rem 0; gap: 0; overflow-y: auto;
     }
     .toolbar-section {
-      padding: 0 0.65rem 0.85rem;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
+      padding: 0 0.6rem 0.75rem;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
     }
     .toolbar-section:last-child { border-bottom: none; }
     .toolbar-section-label {
-      font-size: 0.65rem;
-      font-weight: 600;
-      color: #666;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      margin-bottom: 0.45rem;
-      padding-left: 0.15rem;
+      font-size: 0.6rem; font-weight: 600; color: #555;
+      text-transform: uppercase; letter-spacing: 0.05em;
+      margin-bottom: 0.4rem; padding-left: 0.1rem;
     }
-    .toolbar-section-content {
-      display: flex;
-      flex-direction: column;
-      gap: 0.4rem;
+    .toolbar-section-content { display: flex; flex-direction: column; gap: 0.35rem; }
+    .left-toolbar button {
+      font-family: inherit; font-size: 0.72rem; font-weight: 500;
+      color: #d8d6d3; background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 6px; padding: 0.42rem 0.55rem;
+      cursor: pointer; outline: none; width: 100%; text-align: left;
     }
+    .left-toolbar button:hover { border-color: rgba(255,255,255,0.18); background: rgba(255,255,255,0.08); }
+    .left-toolbar button.active { background: rgba(255,255,255,0.11); border-color: rgba(255,255,255,0.18); }
+    .left-toolbar select {
+      font-family: inherit; font-size: 0.7rem; font-weight: 500;
+      color: #e8e6e3; background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 6px; padding: 0.38rem 1.4rem 0.38rem 0.45rem;
+      cursor: pointer; outline: none; width: 100%;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12' fill='none' stroke='%23777' stroke-width='2'%3E%3Cpath d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 0.35rem center;
+    }
+    .left-toolbar .parts-wrap { display: flex; flex-direction: column; gap: 0.28rem; }
+    .left-toolbar .parts-wrap span { font-size: 0.65rem; color: #777; }
+    .slice-controls { display: none; padding: 0.45rem 0 0; margin-top: 0.2rem; border-top: 1px solid rgba(255,255,255,0.05); }
+    .slice-controls.visible { display: block; }
+    .slice-controls label { font-size: 0.62rem; color: #777; display: block; margin-bottom: 0.18rem; }
+    .slice-controls .axis-row { display: flex; gap: 0.2rem; margin-bottom: 0.3rem; }
+    .slice-controls .axis-row button {
+      flex: 1; font-family: inherit; font-size: 0.62rem;
+      padding: 0.22rem 0.3rem;
+      border: 1px solid rgba(255,255,255,0.09); border-radius: 4px;
+      background: transparent; color: #999; cursor: pointer; text-align: center;
+    }
+    .slice-controls .axis-row button.active { background: rgba(255,255,255,0.14); color: #fff; }
+    .slice-controls input[type="range"] { width: 100%; margin-top: 0.1rem; }
+
+    /* ── Canvas wrapper ── */
     .viz-wrapper {
-      flex: 1;
-      min-width: 0;
-      position: relative;
-      background: #141418;
+      flex: 1; min-width: 0; position: relative; background: #141418;
     }
-    #canvas-container {
-      position: absolute;
-      inset: 0;
-      background: #141418;
-    }
+    #canvas-container { position: absolute; inset: 0; background: #141418; }
     #canvas-container canvas { display: block; width: 100%; height: 100%; }
     .viz-hint {
-      position: absolute;
-      bottom: 1rem;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 5;
-      font-size: 0.6875rem;
-      color: rgba(255,255,255,0.4);
-      background: rgba(0,0,0,0.35);
-      padding: 0.35rem 0.65rem;
-      border-radius: 6px;
+      position: absolute; bottom: 0.75rem; left: 50%; transform: translateX(-50%);
+      z-index: 5; font-size: 0.65rem; color: rgba(255,255,255,0.35);
+      background: rgba(0,0,0,0.3); padding: 0.3rem 0.6rem; border-radius: 5px;
+      pointer-events: none; white-space: nowrap;
     }
-    .left-toolbar .heartbeat-btn,
-    .left-toolbar .slice-btn,
-    .left-toolbar .dual-view-btn {
-      font-family: inherit;
-      font-size: 0.75rem;
-      font-weight: 500;
-      color: #e8e6e3;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 6px;
-      padding: 0.45rem 0.6rem;
-      cursor: pointer;
-      outline: none;
-      width: 100%;
-      text-align: left;
-    }
-    .left-toolbar .heartbeat-btn:hover,
-    .left-toolbar .slice-btn:hover,
-    .left-toolbar .dual-view-btn:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.08); }
-    .left-toolbar .heartbeat-btn.active,
-    .left-toolbar .slice-btn.active,
-    .left-toolbar .dual-view-btn.active {
-      background: rgba(255,255,255,0.12);
-      border-color: rgba(255,255,255,0.2);
-    }
-    .left-toolbar .condition-wrap,
-    .left-toolbar .parts-wrap {
-      display: flex;
-      flex-direction: column;
-      align-items: stretch;
-      gap: 0.3rem;
-    }
-    .left-toolbar .condition-wrap span,
-    .left-toolbar .parts-wrap span { font-size: 0.68rem; color: #888; }
-    .left-toolbar select {
-      font-family: inherit;
-      font-size: 0.72rem;
-      font-weight: 500;
-      color: #e8e6e3;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 6px;
-      padding: 0.4rem 0.5rem;
-      cursor: pointer;
-      outline: none;
-      width: 100%;
-      padding-right: 1.5rem;
-      appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 0.4rem center;
-    }
-    .left-toolbar .dual-view-conditions select { min-width: 0; }
-    .left-toolbar .outlines-toggle {
-      display: flex;
-      align-items: center;
-      gap: 0.35rem;
-      font-size: 0.68rem;
-      color: #888;
-      cursor: pointer;
-      margin-top: 0.25rem;
-    }
-    .left-toolbar .outlines-toggle input { cursor: pointer; }
+    #load-status { display: none; }
+
+    /* Dual-view panel borders (always visible) */
     .dual-view-panels {
-      display: none;
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      z-index: 5;
-    }
-    .dual-view-panels.visible {
-      display: flex;
+      display: flex; position: absolute; inset: 0; pointer-events: none; z-index: 5;
     }
     .view-panel {
-      flex: 1;
-      position: relative;
-      margin: 8px;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.12);
-      box-shadow: 0 4px 24px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(255,255,255,0.04);
-      background: transparent;
+      flex: 1; position: relative; margin: 6px; border-radius: 9px;
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03);
     }
     .view-panel-label {
-      position: absolute;
-      top: 0.65rem;
-      left: 0.75rem;
-      font-size: 0.7rem;
-      font-weight: 600;
-      color: rgba(255,255,255,0.5);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+      position: absolute; top: 0.55rem; left: 0.65rem;
+      font-size: 0.65rem; font-weight: 600;
+      color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.05em;
     }
-    .comparison-overlay {
-      display: none;
-      position: absolute;
-      left: 50%;
-      right: 0;
-      bottom: 2.5rem;
-      padding: 0.5rem 0.75rem;
-      background: rgba(0, 0, 0, 0.75);
-      border-top-left-radius: 8px;
-      max-height: 12rem;
-      overflow-y: auto;
-      font-size: 0.7rem;
-      z-index: 10;
-      pointer-events: none;
-    }
-    .comparison-overlay .comparison-item {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.2rem 0;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-    }
-    .comparison-overlay .comparison-item:last-child { border-bottom: none; }
-    .comparison-overlay .comparison-part { font-weight: 600; min-width: 2rem; }
-    .comparison-overlay .comparison-scale { color: #888; font-size: 0.65rem; }
-    .comparison-overlay .comparison-pct { font-weight: 600; margin-left: auto; }
-    .comparison-overlay .comparison-item.expanded .comparison-part,
-    .comparison-overlay .comparison-item.expanded .comparison-pct { color: #22c55e; }
-    .comparison-overlay .comparison-item.compressed .comparison-part,
-    .comparison-overlay .comparison-item.compressed .comparison-pct { color: #ef4444; }
-    .slice-controls {
-      display: none;
-      padding: 0.5rem 0 0;
-      margin-top: 0.25rem;
-      border-top: 1px solid rgba(255,255,255,0.06);
-    }
-    .slice-controls.visible { display: block; }
-    .slice-controls label { font-size: 0.65rem; color: #888; display: block; margin-bottom: 0.2rem; }
-    .slice-controls .axis-row { display: flex; gap: 0.25rem; margin-bottom: 0.35rem; }
-    .slice-controls .axis-row button {
-      flex: 1;
-      font-family: inherit; font-size: 0.65rem; padding: 0.25rem 0.35rem;
-      border: 1px solid rgba(255,255,255,0.1); border-radius: 4px;
-      background: transparent; color: #aaa; cursor: pointer;
-    }
-    .slice-controls .axis-row button.active { background: rgba(255,255,255,0.15); color: #fff; }
-    .slice-controls input[type="range"] { width: 100%; margin-top: 0.15rem; box-sizing: border-box; }
+
+    /* Part tag */
     .part-tag {
-      display: none;
-      position: absolute;
-      top: 4rem;
-      left: 0.75rem;
-      width: 200px;
-      z-index: 15;
-      background: rgba(22, 22, 26, 0.95);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-      overflow: hidden;
+      display: none; position: absolute; top: 3.5rem; left: 0.65rem;
+      width: 190px; z-index: 15;
+      background: rgba(22,22,26,0.96); border: 1px solid rgba(255,255,255,0.11);
+      border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); overflow: hidden;
     }
     .part-tag.visible { display: block; }
     .part-tag-handle {
-      padding: 0.35rem 0.5rem;
-      font-size: 0.7rem;
-      color: rgba(255,255,255,0.4);
-      cursor: move;
-      user-select: none;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
+      padding: 0.3rem 0.45rem; font-size: 0.65rem; color: rgba(255,255,255,0.35);
+      cursor: move; user-select: none; border-bottom: 1px solid rgba(255,255,255,0.07);
     }
-    .part-tag-handle:hover { color: rgba(255,255,255,0.7); }
-    .part-tag-content { padding: 0.5rem 0.65rem 0.65rem; }
-    .part-tag-name {
-      font-size: 0.8125rem;
-      font-weight: 600;
-      color: #fff;
-      margin-bottom: 0.35rem;
-    }
-    .part-tag-desc {
-      font-size: 0.75rem;
-      line-height: 1.45;
-      color: #b0b0b0;
-      margin: 0;
-    }
+    .part-tag-content { padding: 0.45rem 0.6rem 0.55rem; }
+    .part-tag-name { font-size: 0.78rem; font-weight: 600; color: #fff; margin-bottom: 0.28rem; }
+    .part-tag-desc { font-size: 0.7rem; line-height: 1.45; color: #a0a0a0; margin: 0; }
+
+    /* Annotation menu */
     .annotation-menu-wrap {
-      position: absolute;
-      top: 0.75rem;
-      right: 0.75rem;
-      z-index: 10;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
+      position: absolute; top: 0.65rem; right: 0.65rem; z-index: 10;
+      display: flex; flex-direction: column; align-items: flex-end;
     }
     .annotation-menu-btn {
-      font-family: inherit;
-      font-size: 0.75rem;
-      font-weight: 500;
-      color: #e8e6e3;
-      background: rgba(30, 30, 36, 0.9);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 6px;
-      padding: 0.4rem 0.75rem;
-      cursor: pointer;
-      outline: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
+      font-family: inherit; font-size: 0.7rem; font-weight: 500;
+      color: #d8d6d3; background: rgba(28,28,34,0.9);
+      border: 1px solid rgba(255,255,255,0.09); border-radius: 6px;
+      padding: 0.38rem 0.65rem; cursor: pointer; outline: none;
+      display: inline-flex; align-items: center; gap: 0.35rem;
     }
-    .annotation-menu-btn:hover { border-color: rgba(255,255,255,0.2); }
-    .annotation-menu-btn.active {
-      background: rgba(255,255,255,0.12);
-      border-color: rgba(255,255,255,0.2);
-    }
-    .annotation-menu-btn svg {
-      transition: transform 0.2s ease;
-    }
+    .annotation-menu-btn:hover { border-color: rgba(255,255,255,0.18); }
+    .annotation-menu-btn.active { background: rgba(255,255,255,0.11); border-color: rgba(255,255,255,0.2); }
     .annotation-panel {
-      display: none;
-      margin-top: 0.5rem;
-      width: 220px;
-      background: rgba(22, 22, 26, 0.98);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 8px;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.4);
-      overflow: hidden;
+      display: none; margin-top: 0.45rem; width: 210px;
+      background: rgba(22,22,26,0.98); border: 1px solid rgba(255,255,255,0.11);
+      border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.4); overflow: hidden;
     }
     .annotation-panel.visible { display: block; }
     .annotation-panel-header {
-      padding: 0.5rem 0.75rem;
-      font-size: 0.7rem;
-      font-weight: 600;
-      color: #888;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
+      padding: 0.45rem 0.65rem; font-size: 0.65rem; font-weight: 600;
+      color: #777; text-transform: uppercase; letter-spacing: 0.04em;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
     }
-    .annotation-section {
-      padding: 0.5rem 0.75rem;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-    }
+    .annotation-section { padding: 0.45rem 0.65rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
     .annotation-section:last-child { border-bottom: none; }
-    .annotation-section-title {
-      font-size: 0.7rem;
-      color: #aaa;
-      margin-bottom: 0.4rem;
-    }
-    .annotation-tools {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.35rem;
-    }
+    .annotation-section-title { font-size: 0.65rem; color: #999; margin-bottom: 0.35rem; }
+    .annotation-tools { display: flex; flex-wrap: wrap; gap: 0.3rem; }
     .annotation-tool-btn {
-      font-family: inherit;
-      font-size: 0.7rem;
-      color: #e8e6e3;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 6px;
-      padding: 0.35rem 0.5rem;
-      cursor: pointer;
-      outline: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.3rem;
+      font-family: inherit; font-size: 0.65rem; color: #d8d6d3;
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 5px; padding: 0.32rem 0.45rem; cursor: pointer; outline: none;
+      display: inline-flex; align-items: center; gap: 0.25rem;
     }
-    .annotation-tool-btn:hover {
-      background: rgba(255,255,255,0.1);
-      border-color: rgba(255,255,255,0.18);
+    .annotation-tool-btn:hover { background: rgba(255,255,255,0.09); }
+    .annotation-tool-btn.active { background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.22); }
+    .annotation-tool-dot, .annotation-tool-square {
+      width: 18px; height: 18px; border: none; border-radius: 50%;
+      padding: 0; cursor: pointer; transition: transform 0.12s;
     }
-    .annotation-tool-btn.active {
-      background: rgba(255,255,255,0.15);
-      border-color: rgba(255,255,255,0.25);
-    }
-    .annotation-tool-dot,
-    .annotation-tool-square {
-      width: 20px;
-      height: 20px;
-      border: none;
-      border-radius: 50%;
-      padding: 0;
-      cursor: pointer;
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
-    }
-    .annotation-tool-dot:hover,
-    .annotation-tool-square:hover { transform: scale(1.15); }
-    .annotation-tool-dot.active,
-    .annotation-tool-square.active {
-      box-shadow: 0 0 0 2px rgba(255,255,255,0.9);
-      transform: scale(1.1);
-    }
+    .annotation-tool-square { border-radius: 3px; }
+    .annotation-tool-dot:hover, .annotation-tool-square:hover { transform: scale(1.15); }
+    .annotation-tool-dot.active, .annotation-tool-square.active { box-shadow: 0 0 0 2px rgba(255,255,255,0.85); transform: scale(1.08); }
     .annotation-tool-dot.pin-red { background: #ef4444; }
     .annotation-tool-dot.pin-blue { background: #3b82f6; }
     .annotation-tool-dot.pin-green { background: #22c55e; }
     .annotation-tool-dot.pin-amber { background: #f59e0b; }
-    .annotation-tool-square { border-radius: 4px; }
     .annotation-tool-square.note-yellow { background: #fef08a; }
     .annotation-tool-square.note-pink { background: #fbcfe8; }
     .annotation-tool-square.note-blue { background: #bfdbfe; }
     .annotation-tool-square.note-mint { background: #a7f3d0; }
     .annotation-tool-pen {
-      font-family: inherit;
-      font-size: 0.7rem;
-      color: #e8e6e3;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 6px;
-      padding: 0.35rem 0.5rem;
-      cursor: crosshair;
-      outline: none;
+      font-family: inherit; font-size: 0.65rem; color: #d8d6d3;
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 5px; padding: 0.32rem 0.45rem; cursor: crosshair; outline: none;
     }
-    .annotation-tool-pen:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.18); }
-    .annotation-tool-pen.active { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.25); }
-    .pen-options-row {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      margin-bottom: 0.4rem;
-    }
+    .annotation-tool-pen:hover { background: rgba(255,255,255,0.09); }
+    .annotation-tool-pen.active { background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.22); }
+    .pen-options-row { display: flex; align-items: center; gap: 0.45rem; margin-bottom: 0.35rem; }
     .pen-options-row:last-of-type { margin-bottom: 0; }
-    .pen-option-label { font-size: 0.68rem; color: #888; min-width: 2.5rem; }
-    .pen-color-swatches, .pen-width-btns { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+    .pen-option-label { font-size: 0.62rem; color: #777; min-width: 2.3rem; }
+    .pen-color-swatches, .pen-width-btns { display: flex; flex-wrap: wrap; gap: 0.28rem; }
     .pen-color-swatch {
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      border: 1px solid rgba(255,255,255,0.2);
-      padding: 0;
-      cursor: pointer;
-      transition: transform 0.12s ease, box-shadow 0.12s ease;
+      width: 14px; height: 14px; border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.18); padding: 0; cursor: pointer;
+      transition: transform 0.1s;
     }
     .pen-color-swatch:hover { transform: scale(1.15); }
-    .pen-color-swatch.active { box-shadow: 0 0 0 2px rgba(255,255,255,0.9); transform: scale(1.1); }
+    .pen-color-swatch.active { box-shadow: 0 0 0 2px rgba(255,255,255,0.85); transform: scale(1.08); }
     .pen-color-red { background: #ef4444; }
     .pen-color-blue { background: #3b82f6; }
     .pen-color-green { background: #22c55e; }
     .pen-color-black { background: #1a1a1a; }
     .pen-color-white { background: #fff; }
     .pen-width-btn {
-      font-family: inherit;
-      font-size: 0.65rem;
-      padding: 0.25rem 0.4rem;
-      border-radius: 4px;
-      border: 1px solid rgba(255,255,255,0.1);
-      background: rgba(255,255,255,0.06);
-      color: #ccc;
-      cursor: pointer;
+      font-family: inherit; font-size: 0.6rem; padding: 0.2rem 0.35rem;
+      border-radius: 4px; border: 1px solid rgba(255,255,255,0.09);
+      background: rgba(255,255,255,0.05); color: #bbb; cursor: pointer;
     }
-    .pen-width-btn:hover { background: rgba(255,255,255,0.1); }
-    .pen-width-btn.active { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.25); }
+    .pen-width-btn:hover { background: rgba(255,255,255,0.09); }
+    .pen-width-btn.active { background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.22); }
+
+    /* Pin comment panel */
     .pin-comment-panel {
-      display: none;
-      position: absolute;
-      width: 240px;
-      z-index: 15;
-      left: 0;
-      top: 0;
-      background: rgba(22, 22, 26, 0.98);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 8px;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.4);
-      overflow: hidden;
+      display: none; position: absolute; width: 230px; z-index: 15;
+      background: rgba(22,22,26,0.98); border: 1px solid rgba(255,255,255,0.11);
+      border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.4); overflow: hidden;
     }
     .pin-comment-panel.visible { display: block; }
     .pin-comment-panel h4 {
-      margin: 0;
-      padding: 0.5rem 0.75rem;
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: #ccc;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
+      margin: 0; padding: 0.45rem 0.65rem;
+      font-size: 0.7rem; font-weight: 600; color: #bbb;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
     }
     .pin-comment-panel textarea {
-      width: 100%;
-      min-height: 72px;
-      margin: 0;
-      padding: 0.5rem 0.75rem;
-      font-family: inherit;
-      font-size: 0.8rem;
-      color: #e8e6e3;
-      background: rgba(0,0,0,0.2);
-      border: none;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-      resize: vertical;
-      outline: none;
-      box-sizing: border-box;
+      width: 100%; min-height: 68px; margin: 0; padding: 0.45rem 0.65rem;
+      font-family: inherit; font-size: 0.75rem; color: #e8e6e3;
+      background: rgba(0,0,0,0.18); border: none;
+      border-bottom: 1px solid rgba(255,255,255,0.07); resize: vertical; outline: none;
     }
-    .pin-comment-panel textarea::placeholder { color: #666; }
+    .pin-comment-panel textarea::placeholder { color: #555; }
     .pin-comment-panel .pin-comment-actions {
-      padding: 0.4rem 0.75rem;
-      display: flex;
-      justify-content: flex-end;
-      gap: 0.35rem;
+      padding: 0.35rem 0.65rem; display: flex; justify-content: flex-end; gap: 0.3rem;
     }
     .pin-comment-panel .pin-comment-actions button {
-      font-family: inherit;
-      font-size: 0.7rem;
-      padding: 0.3rem 0.5rem;
-      border-radius: 4px;
-      border: 1px solid rgba(255,255,255,0.2);
-      background: rgba(255,255,255,0.08);
-      color: #e8e6e3;
-      cursor: pointer;
+      font-family: inherit; font-size: 0.65rem; padding: 0.27rem 0.45rem;
+      border-radius: 4px; border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.07); color: #d8d6d3; cursor: pointer;
     }
-    .pin-comment-panel .pin-comment-actions button:hover { background: rgba(255,255,255,0.12); }
-    .pin-comment-panel .pin-comment-actions button.primary { background: rgba(45, 122, 255, 0.4); border-color: rgba(45, 122, 255, 0.6); }
+    .pin-comment-panel .pin-comment-actions button.primary { background: rgba(45,122,255,0.35); border-color: rgba(45,122,255,0.55); }
+
+    /* Sticky notes */
     .sticky-note {
-      position: absolute;
-      width: 140px;
-      min-height: 100px;
-      border-radius: 4px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.35);
-      z-index: 12;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      cursor: move;
-      border: 1px solid rgba(0,0,0,0.12);
+      position: absolute; width: 132px; min-height: 90px;
+      border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+      z-index: 12; display: flex; flex-direction: column; overflow: hidden;
+      cursor: move; border: 1px solid rgba(0,0,0,0.1);
     }
     .sticky-note-header {
-      display: flex;
-      justify-content: flex-end;
-      align-items: center;
-      padding: 0.2rem 0.25rem 0;
-      min-height: 22px;
-      flex-shrink: 0;
+      display: flex; justify-content: flex-end; align-items: center;
+      padding: 0.18rem 0.22rem 0; min-height: 20px; flex-shrink: 0;
     }
     .sticky-note-delete {
-      width: 20px;
-      height: 20px;
-      padding: 0;
-      border: none;
-      border-radius: 4px;
-      background: rgba(0,0,0,0.15);
-      color: #333;
-      font-size: 0.9rem;
-      line-height: 1;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
+      width: 18px; height: 18px; padding: 0; border: none; border-radius: 3px;
+      background: rgba(0,0,0,0.12); color: #333; font-size: 0.85rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
     }
-    .sticky-note-delete:hover { background: rgba(0,0,0,0.25); color: #000; }
     .sticky-note-body {
-      flex: 1;
-      padding: 0.4rem 0.5rem 0.5rem;
-      font-size: 0.75rem;
-      color: #333;
-      resize: none;
-      border: none;
-      outline: none;
-      font-family: inherit;
-      min-height: 60px;
-      background: transparent;
+      flex: 1; padding: 0.35rem 0.45rem 0.45rem;
+      font-size: 0.7rem; color: #333; resize: none;
+      border: none; outline: none; font-family: inherit; min-height: 55px; background: transparent;
     }
     .sticky-note-yellow { background: #fef08a; }
     .sticky-note-pink { background: #fbcfe8; }
     .sticky-note-blue { background: #bfdbfe; }
     .sticky-note-mint { background: #a7f3d0; }
+
+    /* ── RIGHT PANEL ── */
+    .right-panel {
+      width: 300px; flex-shrink: 0;
+      display: flex; flex-direction: column;
+      background: rgba(20,20,24,0.99);
+      border-left: 1px solid rgba(255,255,255,0.07);
+      overflow: hidden;
+    }
+    .tab-bar {
+      display: flex; flex-shrink: 0;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    .tab-btn {
+      flex: 1; padding: 0.6rem 0;
+      font-family: inherit; font-size: 0.72rem; font-weight: 600;
+      color: #555; background: transparent; border: none; cursor: pointer;
+      letter-spacing: 0.02em;
+      border-bottom: 2px solid transparent; margin-bottom: -1px;
+      transition: color 0.15s;
+    }
+    .tab-btn:hover { color: #aaa; }
+    .tab-btn.active { color: #e8e6e3; border-bottom-color: rgba(255,255,255,0.55); }
+    .tab-content {
+      flex: 1; overflow-y: auto; padding: 0.75rem 0.7rem;
+      display: flex; flex-direction: column; gap: 0.8rem;
+    }
+    .tab-content.hidden { display: none; }
+
+    /* View labels row */
+    .view-labels-row {
+      display: flex; justify-content: space-between;
+      padding: 0.4rem 0.5rem;
+      background: rgba(255,255,255,0.03);
+      border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);
+    }
+    .view-label-item { display: flex; align-items: center; gap: 0.3rem; font-size: 0.65rem; color: #666; }
+    .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; }
+    .dot-left { background: #6b7280; }
+    .dot-right { background: #f59e0b; }
+
+    /* Panel sections */
+    .panel-section { display: flex; flex-direction: column; gap: 0.38rem; }
+    .panel-section-title {
+      font-size: 0.6rem; font-weight: 600; color: #4a4a55;
+      text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .panel-section select {
+      font-family: inherit; font-size: 0.7rem; font-weight: 500;
+      color: #e8e6e3; background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 6px; padding: 0.38rem 1.5rem 0.38rem 0.5rem;
+      cursor: pointer; outline: none; width: 100%;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12' fill='none' stroke='%23777' stroke-width='2'%3E%3Cpath d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 0.4rem center;
+    }
+
+    /* Change bars (simulate + deviation) */
+    .change-bars-list { display: flex; flex-direction: column; gap: 0.22rem; }
+    .change-bar-empty { font-size: 0.68rem; color: #444; padding: 0.4rem 0; }
+    .change-bar-row { display: flex; align-items: center; gap: 0.45rem; }
+    .change-bar-label { font-size: 0.68rem; color: #888; min-width: 2.8rem; font-weight: 500; }
+    .change-bar-track {
+      flex: 1; height: 4px; background: rgba(255,255,255,0.06);
+      border-radius: 2px; overflow: hidden;
+    }
+    .change-bar-fill { height: 100%; border-radius: 2px; transition: width 0.3s ease; }
+    .change-bar-pct { font-size: 0.66rem; font-weight: 600; min-width: 3.5rem; text-align: right; }
+
+    /* Attribution bars (scan conditions) */
+    .attr-bars-list { display: flex; flex-direction: column; gap: 0.22rem; }
+    .attr-bar-row { display: flex; align-items: center; gap: 0.4rem; }
+    .attr-bar-label {
+      font-size: 0.62rem; color: #999; min-width: 5.5rem;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .attr-bar-track {
+      flex: 1; height: 4px; background: rgba(255,255,255,0.06);
+      border-radius: 2px; overflow: hidden;
+    }
+    .attr-bar-fill { height: 100%; background: #3b82f6; border-radius: 2px; }
+    .attr-bar-score { font-size: 0.62rem; color: #666; min-width: 2.5rem; text-align: right; }
+
+    /* Scan banner */
+    .scan-banner {
+      background: rgba(255,255,255,0.04); border-radius: 7px;
+      padding: 0.6rem 0.65rem; border: 1px solid rgba(255,255,255,0.06);
+      display: flex; flex-direction: column; gap: 0.28rem;
+    }
+    .scan-banner-top { display: flex; align-items: baseline; gap: 0.5rem; }
+    #scan-patient-id { font-size: 0.875rem; font-weight: 700; color: #fff; }
+    #scan-category { font-size: 0.72rem; color: #888; }
+    .anomaly-badge {
+      display: inline-block; font-size: 0.66rem; font-weight: 600;
+      padding: 0.18rem 0.45rem; border-radius: 4px; color: #e8e6e3;
+      align-self: flex-start; margin-top: 0.1rem;
+    }
+
+    /* PCA scatter */
+    #pca-scatter {
+      display: block; width: 100%; border-radius: 6px;
+      background: rgba(0,0,0,0.25);
+    }
+    .pca-legend {
+      display: flex; align-items: center; gap: 0.3rem;
+      font-size: 0.6rem; color: #555; margin-top: 0.28rem;
+    }
+    .pca-legend-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; }
+
+    /* Nearest patients */
+    .nearest-list { display: flex; flex-direction: column; gap: 0; }
+    .nearest-item {
+      display: flex; align-items: center; gap: 0.4rem;
+      padding: 0.28rem 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+      font-size: 0.68rem;
+    }
+    .nearest-item:last-child { border-bottom: none; }
+    .nearest-rank { color: #555; font-size: 0.62rem; min-width: 1.3rem; }
+    .nearest-id { font-weight: 600; color: #d8d6d3; min-width: 4rem; }
+    .nearest-cat { flex: 1; color: #777; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .nearest-dist { color: #555; font-size: 0.62rem; }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 1.5px dashed rgba(255,255,255,0.14); border-radius: 8px;
+      padding: 1.25rem 0.75rem; text-align: center;
+      cursor: pointer; position: relative; transition: border-color 0.2s;
+      background: rgba(255,255,255,0.02);
+    }
+    .drop-zone:hover { border-color: rgba(255,255,255,0.28); background: rgba(255,255,255,0.04); }
+    .drop-zone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .drop-zone-icon { font-size: 1.5rem; margin-bottom: 0.35rem; opacity: 0.35; }
+    .drop-zone span { font-size: 0.7rem; color: #555; display: block; pointer-events: none; }
+    .demo-hint {
+      font-size: 0.62rem; color: #444; padding: 0.3rem 0;
+      border-top: 1px solid rgba(255,255,255,0.04); margin-top: 0.1rem;
+    }
+    .demo-hint strong { color: #666; }
+    .scan-status {
+      font-size: 0.68rem; padding: 0.4rem 0.5rem; border-radius: 5px;
+      background: rgba(255,255,255,0.05); color: #888;
+    }
+    .scan-status.hidden { display: none; }
+    .scan-status.error { background: rgba(239,68,68,0.12); color: #f87171; }
+    #scan-results.hidden { display: none; }
+    #scan-results { display: flex; flex-direction: column; gap: 0.8rem; }
+
+    /* Divider */
+    .panel-divider { height: 1px; background: rgba(255,255,255,0.05); margin: 0.1rem 0; }
   </style>
 </head>
 <body>
@@ -596,25 +448,26 @@
     <header class="header">
       <div class="brand">
         <h1>HeartScape</h1>
-        <span class="tagline">Interactive 3D cardiac visualization</span>
+        <span class="tagline">Interactive 3D cardiac visualization · Hacklytics 2026</span>
       </div>
       <nav class="header-nav">
         <button type="button" class="about-toggle" id="about-toggle" aria-expanded="false">About</button>
       </nav>
     </header>
+
     <section class="about-panel" id="about-panel" aria-hidden="true">
-      <p>HeartScape is an interactive 3D cardiac visualization platform that transforms medical imaging data into dynamic, explorable models of the human heart. Using real scan-derived anatomical structures, the platform allows users to rotate, slice, annotate, and compare healthy and diseased hearts in an intuitive environment.</p>
-      <p>By visualizing how conditions such as cardiomyopathy, hypertrophy, or structural defects alter cardiac anatomy over time, HeartScape makes complex medical information accessible to clinicians, researchers, students, and patients alike.</p>
-      <p>Rather than viewing static images, users can explore the heart as a living system — examining structural changes, understanding disease progression, and interacting directly with patient-specific anatomy.</p>
+      <p>HeartScape is an interactive 3D cardiac visualization platform built for congenital heart disease analysis. The left view always shows Patient 1 as the anatomical reference. Use <strong>Simulate</strong> to see how specific CHD conditions typically deform cardiac anatomy, or <strong>Upload Scan</strong> to load a holdout patient's segmented MRI and run full PCA + condition attribution analysis.</p>
+      <p>PCA is trained on 54 patients across 33 CHD conditions from the HVSMR-2.0 dataset. Condition attribution uses feature-space proximity to known condition archetypes. Five holdout patients (1, 14, 16, 28, 57) are available as demo inputs.</p>
     </section>
+
     <main class="main">
+      <!-- Left toolbar: view controls only -->
       <aside class="left-toolbar">
         <div class="toolbar-section">
           <div class="toolbar-section-label">View</div>
           <div class="toolbar-section-content">
-            <button type="button" class="heartbeat-btn" id="heartbeat-btn" aria-pressed="false">Start heartbeat</button>
-            <button type="button" class="slice-btn" id="slice-btn" aria-pressed="false">Slice view</button>
-            <button type="button" class="dual-view-btn" id="dual-view-btn" aria-pressed="false">Dual view</button>
+            <button type="button" id="heartbeat-btn" aria-pressed="false">Start heartbeat</button>
+            <button type="button" id="slice-btn" aria-pressed="false">Slice view</button>
             <div class="slice-controls" id="slice-controls" aria-hidden="true">
               <label>Slice axis</label>
               <div class="axis-row">
@@ -624,31 +477,6 @@
               </div>
               <label>Position</label>
               <input type="range" id="slice-position" min="-1" max="1" step="0.01" value="0" />
-            </div>
-          </div>
-        </div>
-        <div class="toolbar-section">
-          <div class="toolbar-section-label">Simulate</div>
-          <div class="toolbar-section-content">
-            <div class="condition-wrap" id="condition-wrap-single">
-              <span>Condition</span>
-              <select id="condition-select" aria-label="Simulate congenital condition">
-                <option value="">Baseline</option>
-              </select>
-            </div>
-            <div class="condition-wrap dual-view-conditions" id="condition-wrap-dual" style="display: none;">
-              <span>Left</span>
-              <select id="condition-select-left" aria-label="Simulate condition (left heart)">
-                <option value="">Baseline</option>
-              </select>
-              <span>Right</span>
-              <select id="condition-select-right" aria-label="Simulate condition (right heart)">
-                <option value="">Baseline</option>
-              </select>
-              <label class="outlines-toggle">
-                <input type="checkbox" id="outlines-only-highlighted" checked aria-label="Show comparison outlines only for highlighted part" />
-                <span>Outlines: highlighted only</span>
-              </label>
             </div>
           </div>
         </div>
@@ -664,30 +492,33 @@
           </div>
         </div>
       </aside>
+
+      <!-- Canvas -->
       <div class="viz-wrapper">
+        <!-- Annotation button overlay -->
         <div class="annotation-menu-wrap">
-          <button type="button" class="annotation-menu-btn" id="annotation-menu-btn" aria-expanded="false" aria-controls="annotation-panel">
+          <button type="button" class="annotation-menu-btn" id="annotation-menu-btn" aria-expanded="false">
             <span>Edit / Annotate</span>
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 4l4 4 4-4"/></svg>
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 4l4 4 4-4"/></svg>
           </button>
-          <div class="annotation-panel" id="annotation-panel" role="menu" aria-label="Annotation tools">
+          <div class="annotation-panel" id="annotation-panel" role="menu">
             <div class="annotation-panel-header">Mark on heart</div>
             <div class="annotation-section">
               <div class="annotation-section-title">Pins</div>
               <div class="annotation-tools">
-                <button type="button" class="annotation-tool annotation-tool-dot pin-red" data-tool="pin-red" title="Red pin" aria-label="Red pin"></button>
-                <button type="button" class="annotation-tool annotation-tool-dot pin-blue" data-tool="pin-blue" title="Blue pin" aria-label="Blue pin"></button>
-                <button type="button" class="annotation-tool annotation-tool-dot pin-green" data-tool="pin-green" title="Green pin" aria-label="Green pin"></button>
-                <button type="button" class="annotation-tool annotation-tool-dot pin-amber" data-tool="pin-amber" title="Amber pin" aria-label="Amber pin"></button>
+                <button type="button" class="annotation-tool annotation-tool-dot pin-red" data-tool="pin-red" title="Red pin"></button>
+                <button type="button" class="annotation-tool annotation-tool-dot pin-blue" data-tool="pin-blue" title="Blue pin"></button>
+                <button type="button" class="annotation-tool annotation-tool-dot pin-green" data-tool="pin-green" title="Green pin"></button>
+                <button type="button" class="annotation-tool annotation-tool-dot pin-amber" data-tool="pin-amber" title="Amber pin"></button>
               </div>
             </div>
             <div class="annotation-section">
               <div class="annotation-section-title">Sticky notes</div>
               <div class="annotation-tools">
-                <button type="button" class="annotation-tool annotation-tool-square note-yellow" data-tool="sticky-note-yellow" title="Yellow note" aria-label="Yellow sticky note"></button>
-                <button type="button" class="annotation-tool annotation-tool-square note-pink" data-tool="sticky-note-pink" title="Pink note" aria-label="Pink sticky note"></button>
-                <button type="button" class="annotation-tool annotation-tool-square note-blue" data-tool="sticky-note-blue" title="Blue note" aria-label="Blue sticky note"></button>
-                <button type="button" class="annotation-tool annotation-tool-square note-mint" data-tool="sticky-note-mint" title="Mint note" aria-label="Mint sticky note"></button>
+                <button type="button" class="annotation-tool annotation-tool-square note-yellow" data-tool="sticky-note-yellow" title="Yellow note"></button>
+                <button type="button" class="annotation-tool annotation-tool-square note-pink" data-tool="sticky-note-pink" title="Pink note"></button>
+                <button type="button" class="annotation-tool annotation-tool-square note-blue" data-tool="sticky-note-blue" title="Blue note"></button>
+                <button type="button" class="annotation-tool annotation-tool-square note-mint" data-tool="sticky-note-mint" title="Mint note"></button>
               </div>
             </div>
             <div class="annotation-section">
@@ -695,40 +526,44 @@
               <div class="pen-options-row">
                 <span class="pen-option-label">Color</span>
                 <div class="pen-color-swatches">
-                  <button type="button" class="pen-color-swatch pen-color-red active" data-pen-color="pen-red" title="Red" aria-label="Red pen"></button>
-                  <button type="button" class="pen-color-swatch pen-color-blue" data-pen-color="pen-blue" title="Blue" aria-label="Blue pen"></button>
-                  <button type="button" class="pen-color-swatch pen-color-green" data-pen-color="pen-green" title="Green" aria-label="Green pen"></button>
-                  <button type="button" class="pen-color-swatch pen-color-black" data-pen-color="pen-black" title="Black" aria-label="Black pen"></button>
-                  <button type="button" class="pen-color-swatch pen-color-white" data-pen-color="pen-white" title="White" aria-label="White pen"></button>
+                  <button type="button" class="pen-color-swatch pen-color-red active" data-pen-color="pen-red" title="Red"></button>
+                  <button type="button" class="pen-color-swatch pen-color-blue" data-pen-color="pen-blue" title="Blue"></button>
+                  <button type="button" class="pen-color-swatch pen-color-green" data-pen-color="pen-green" title="Green"></button>
+                  <button type="button" class="pen-color-swatch pen-color-black" data-pen-color="pen-black" title="Black"></button>
+                  <button type="button" class="pen-color-swatch pen-color-white" data-pen-color="pen-white" title="White"></button>
                 </div>
               </div>
               <div class="pen-options-row">
-                <span class="pen-option-label">Thickness</span>
+                <span class="pen-option-label">Width</span>
                 <div class="pen-width-btns">
-                  <button type="button" class="pen-width-btn" data-pen-width="pen-thin" title="Thin">Thin</button>
-                  <button type="button" class="pen-width-btn active" data-pen-width="pen-medium" title="Medium">Med</button>
-                  <button type="button" class="pen-width-btn" data-pen-width="pen-thick" title="Thick">Thick</button>
+                  <button type="button" class="pen-width-btn" data-pen-width="pen-thin">Thin</button>
+                  <button type="button" class="pen-width-btn active" data-pen-width="pen-medium">Med</button>
+                  <button type="button" class="pen-width-btn" data-pen-width="pen-thick">Thick</button>
                 </div>
               </div>
-              <div class="annotation-tools" style="margin-top: 0.35rem;">
-                <button type="button" class="annotation-tool annotation-tool-pen" data-tool="pen" title="Draw on the heart surface (drag to draw)">Pen</button>
+              <div class="annotation-tools" style="margin-top:0.3rem;">
+                <button type="button" class="annotation-tool annotation-tool-pen" data-tool="pen" title="Draw on the heart surface">Pen</button>
               </div>
             </div>
           </div>
         </div>
+
         <div class="pin-comment-panel" id="pin-comment-panel" aria-hidden="true">
           <h4>Pin comment</h4>
           <textarea id="pin-comment-text" placeholder="Add a comment..." rows="3"></textarea>
           <div class="pin-comment-actions">
-            <button type="button" id="pin-comment-done">Done</button>
+            <button type="button" id="pin-comment-done" class="primary">Done</button>
           </div>
         </div>
-        <div class="dual-view-panels" id="dual-view-panels" aria-hidden="true">
-          <div class="view-panel view-panel-left"><span class="view-panel-label">Left</span></div>
-          <div class="view-panel view-panel-right"><span class="view-panel-label">Right</span></div>
+
+        <!-- Always-on dual-view panel borders -->
+        <div class="dual-view-panels" aria-hidden="true">
+          <div class="view-panel view-panel-left"><span class="view-panel-label">Reference · Patient 1</span></div>
+          <div class="view-panel view-panel-right"><span class="view-panel-label" id="right-panel-label">Baseline</span></div>
         </div>
-        <div class="comparison-overlay" id="comparison-overlay" style="display: none;" aria-label="Scale factors: expanded vs compressed segments on right heart"></div>
+
         <div id="canvas-container"></div>
+
         <div class="part-tag" id="part-tag" aria-hidden="true">
           <div class="part-tag-handle" id="part-tag-handle">⋮⋮</div>
           <div class="part-tag-content">
@@ -736,31 +571,114 @@
             <p class="part-tag-desc" id="part-tag-desc"></p>
           </div>
         </div>
-        <p id="load-status" class="viz-hint" style="display:none;"></p>
-        <p class="viz-hint">Drag to rotate · Scroll to zoom · Right-click part to highlight</p>
+
+        <p id="load-status" class="viz-hint"></p>
+        <p class="viz-hint">Drag to rotate · Scroll to zoom · Right-click to highlight part</p>
       </div>
+
+      <!-- Right panel -->
+      <aside class="right-panel">
+        <div class="tab-bar">
+          <button type="button" class="tab-btn active" data-tab="simulate">Simulate</button>
+          <button type="button" class="tab-btn" data-tab="scan">Upload Scan</button>
+        </div>
+
+        <!-- ── SIMULATE TAB ── -->
+        <div class="tab-content" id="tab-simulate">
+          <div class="view-labels-row">
+            <span class="view-label-item"><span class="dot dot-left"></span>Left: Reference</span>
+            <span class="view-label-item"><span class="dot dot-right"></span>Right: Simulated</span>
+          </div>
+
+          <div class="panel-section">
+            <div class="panel-section-title">Condition</div>
+            <select id="condition-select" aria-label="Simulate congenital condition">
+              <option value="">Baseline (same as reference)</option>
+            </select>
+          </div>
+
+          <div class="panel-section">
+            <div class="panel-section-title">Volume Changes vs Reference</div>
+            <div id="sim-comparison-list" class="change-bars-list">
+              <div class="change-bar-empty">Select a condition above to see structural changes.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── SCAN TAB ── -->
+        <div class="tab-content hidden" id="tab-scan">
+          <div class="view-labels-row">
+            <span class="view-label-item"><span class="dot dot-left"></span>Left: Reference</span>
+            <span class="view-label-item"><span class="dot dot-right"></span>Right: Uploaded Scan</span>
+          </div>
+
+          <div class="panel-section">
+            <div class="panel-section-title">Upload Segmented Scan</div>
+            <div class="drop-zone" id="scan-drop-zone">
+              <input type="file" id="scan-file-input" accept=".nii,.nii.gz" aria-label="Upload NIfTI segmentation">
+              <div class="drop-zone-icon">🫀</div>
+              <span>Drop .nii.gz or click to browse</span>
+            </div>
+            <div class="demo-hint">
+              <strong>Demo files:</strong> pat1, pat14, pat16, pat28, pat57<br>
+              (holdout patients — not used in training)
+            </div>
+            <div id="scan-status" class="scan-status hidden"></div>
+          </div>
+
+          <div id="scan-results" class="hidden">
+            <div class="scan-banner">
+              <div class="scan-banner-top">
+                <span id="scan-patient-id">—</span>
+                <span id="scan-category">—</span>
+              </div>
+              <div id="anomaly-badge" class="anomaly-badge">—</div>
+            </div>
+
+            <div class="panel-divider"></div>
+
+            <div class="panel-section">
+              <div class="panel-section-title">Condition Attribution</div>
+              <div id="condition-attribution-list" class="attr-bars-list"></div>
+            </div>
+
+            <div class="panel-section">
+              <div class="panel-section-title">PCA Morphology Position</div>
+              <svg id="pca-scatter" viewBox="0 0 260 140" height="140" width="100%"></svg>
+              <div class="pca-legend">
+                <span class="pca-legend-dot" style="background:#f59e0b;"></span>This patient&nbsp;
+                <span class="pca-legend-dot" style="background:#6b7280;margin-left:0.3rem;"></span>Training set
+              </div>
+            </div>
+
+            <div class="panel-section">
+              <div class="panel-section-title">Structural Deviations vs Reference</div>
+              <div id="deviation-list" class="change-bars-list"></div>
+            </div>
+
+            <div class="panel-section">
+              <div class="panel-section-title">Nearest Real Patients</div>
+              <div id="nearest-patients-list" class="nearest-list"></div>
+            </div>
+          </div>
+        </div>
+      </aside>
     </main>
   </div>
+
   <script type="importmap">
-    {
-      "imports": {
-        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-      }
-    }
+    { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
   </script>
   <script type="module" src="heart-scene.js"></script>
   <script>
     (function() {
-      const aboutToggle = document.getElementById('about-toggle');
-      const aboutPanel = document.getElementById('about-panel');
-      if (aboutToggle && aboutPanel) {
-        aboutToggle.addEventListener('click', function() {
-          const open = aboutPanel.classList.toggle('visible');
-          aboutToggle.setAttribute('aria-expanded', open);
-          aboutToggle.textContent = open ? 'Hide' : 'About';
-        });
-      }
+      const t = document.getElementById('about-toggle');
+      const p = document.getElementById('about-panel');
+      if (t && p) t.addEventListener('click', () => {
+        const open = p.classList.toggle('visible');
+        t.setAttribute('aria-expanded', open);
+        t.textContent = open ? 'Hide' : 'About';
+      });
     })();
   </script>
 </body>

@@ -1,0 +1,58 @@
+{
+  "patient_id": 28,
+  "ground_truth": "Unknown",
+  "obj_path": "models/pat28.obj",
+  "features": {
+    "Label_1_vol_ml": 24.8057,
+    "Label_2_vol_ml": 14.7458,
+    "Label_3_vol_ml": 8.4522,
+    "Label_4_vol_ml": 17.2935,
+    "Label_5_vol_ml": 11.3838,
+    "Label_6_vol_ml": 2.9932,
+    "Label_7_vol_ml": 0.8102,
+    "Label_8_vol_ml": 3.8168,
+    "Total_heart_vol": 84.3014
+  },
+  "mesh_scales": {
+    "LV": 0.627,
+    "RV": 0.5848,
+    "LA": 0.5848,
+    "RA": 0.6499,
+    "Aorta": 0.5848,
+    "PA": 0.5848,
+    "SVC": 0.5848,
+    "IVC": 0.6623
+  },
+  "pca": {
+    "pc1": -2.4947,
+    "pc2": -0.3751
+  },
+  "severity": 0.0265,
+  "nearest": [
+    {
+      "patient_id": 38,
+      "category": "severe",
+      "distance": 0.03074029441150733
+    },
+    {
+      "patient_id": 22,
+      "category": "severe",
+      "distance": 0.09438182464206957
+    },
+    {
+      "patient_id": 46,
+      "category": "severe",
+      "distance": 0.10521626439984444
+    }
+  ],
+  "condition_scores": {
+    "PABanding": 0.6519,
+    "SuperoinferiorVentricles": 0.606,
+    "DLoopTGA": 0.5752,
+    "PAAtresiaOrMPAStump": 0.5357,
+    "DORV": 0.4678,
+    "VSD": 0.4526,
+    "Mesocardia": 0.45,
+    "InvertedVentricles": 0.4402
+  }
+}

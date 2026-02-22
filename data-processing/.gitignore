@@ -8,5 +8,6 @@ heart_models/
 ../models/scaler_model.pkl
 *.png
 *.json
+*.obj
 scan_outputs/
 __pycache__/

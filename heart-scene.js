@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 
+// ── Renderer setup ────────────────────────────────────────────────────────────
 const container = document.getElementById('canvas-container');
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x141418);
@@ -30,28 +31,22 @@ controls.mouseButtons.RIGHT = null;
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
+// Lights
 scene.add(new THREE.AmbientLight(0xb8b8c8, 0.95));
-const key = new THREE.DirectionalLight(0xffffff, 1.35);
-key.position.set(3, 4, 5);
-scene.add(key);
-const fill = new THREE.DirectionalLight(0xe8e8f0, 0.6);
-fill.position.set(-2, 1, 3);
-scene.add(fill);
+const key = new THREE.DirectionalLight(0xffffff, 1.35); key.position.set(3, 4, 5); scene.add(key);
+const fill = new THREE.DirectionalLight(0xe8e8f0, 0.6); fill.position.set(-2, 1, 3); scene.add(fill);
 
+// ── State ─────────────────────────────────────────────────────────────────────
 let pickableMeshes = [];
 let selectedMeshes = [];
 let heartGroup = null;
 let heartBaseScale = 1;
-let dualViewEnabled = false;
 let sceneRight = null;
 let cameraRight = null;
 let heartGroupRight = null;
 let pickableMeshesRight = [];
 let heartBaseScaleRight = 1;
 let estimatedPartByMeshRight = null;
-let comparisonOutlinesOnlyHighlighted = true;  // toggle: true = only highlighted part's outline, false = all outlines
-const COMPARISON_GREEN = 0x22c55e;   // expanded (right > left)
-const COMPARISON_RED = 0xef4444;     // compressed (right < left)
 let heartbeatEnabled = false;
 let pulseRestored = true;
 let sliceEnabled = false;
@@ -62,44 +57,84 @@ const DIM_OPACITY = 0.15;
 const DIM_DARKEN = 0.18;
 
 let annotationPanelOpen = false;
-let currentAnnotationTool = null;  // 'pin-red' | 'pin-blue' | 'sticky-note-*' | null
-
+let currentAnnotationTool = null;
 const PIN_COLORS = { 'pin-red': 0xef4444, 'pin-blue': 0x3b82f6, 'pin-green': 0x22c55e, 'pin-amber': 0xf59e0b };
 const PIN_RADIUS = 0.08;
-let pins = [];  // { id, mesh, color, comment }
+let pins = [];
 let nextPinId = 1;
 let commentPanelPinId = null;
 const _pinWorldPos = new THREE.Vector3();
-
 const STICKY_COLORS = { 'sticky-note-yellow': 'yellow', 'sticky-note-pink': 'pink', 'sticky-note-blue': 'blue', 'sticky-note-mint': 'mint' };
-let stickyNotes = [];  // { id, el, colorKey }
+let stickyNotes = [];
 let nextStickyId = 1;
-
 const PEN_COLORS = { 'pen-red': 0xef4444, 'pen-blue': 0x3b82f6, 'pen-green': 0x22c55e, 'pen-black': 0x1a1a1a, 'pen-white': 0xffffff };
 const PEN_WIDTHS = { 'pen-thin': 2, 'pen-medium': 4, 'pen-thick': 6 };
-const PEN_MIN_DIST = 0.008;  // min distance between points (local space) to avoid jitter
+const PEN_MIN_DIST = 0.008;
 let currentPenColor = 'pen-red';
 let currentPenWidth = 'pen-medium';
-let penStrokes = [];  // { line: THREE.Line, points: THREE.Vector3[] }
+let penStrokes = [];
 let isDrawing = false;
 let currentStroke = null;
 let penMoveHandler = null;
 let penUpHandler = null;
 
+// Data
+let conditionData = null;
+let pcaLandscape = null;
+let currentTab = 'simulate';
+
+// ── Constants ─────────────────────────────────────────────────────────────────
 const BEAT_PERIOD = 0.9;
 const BEAT_AMPLITUDE = 0.05;
+const COMPARISON_GREEN = 0x22c55e;
+const COMPARISON_RED = 0xef4444;
 
+const PART_NAMES = ['LV', 'RV', 'LA', 'RA', 'AO', 'PA', 'PV', 'SVC'];
+const PART_NAME_TO_VOL_KEY = {
+  LV: 'Label_1_vol_ml', RV: 'Label_2_vol_ml', LA: 'Label_3_vol_ml', RA: 'Label_4_vol_ml',
+  AO: 'Label_5_vol_ml', PA: 'Label_6_vol_ml', PV: 'Label_7_vol_ml', SVC: 'Label_8_vol_ml',
+};
+const OBJ_NAME_TO_PART = { 'Aorta': 'AO', 'IVC': 'SVC' };
+const PART_DESCRIPTIONS = {
+  LV: 'Left ventricle. Pumps oxygenated blood to the body via the aorta.',
+  RV: 'Right ventricle. Pumps deoxygenated blood to the lungs via the pulmonary artery.',
+  LA: 'Left atrium. Receives oxygenated blood from the lungs.',
+  RA: 'Right atrium. Receives deoxygenated blood from the body.',
+  AO: 'Aorta. Main artery carrying oxygenated blood to the body.',
+  PA: 'Pulmonary artery. Carries deoxygenated blood to the lungs.',
+  PV: 'Superior vena cava (Label 7). Returns blood from upper body.',
+  SVC: 'Inferior vena cava (Label 8). Returns blood from lower body.',
+  Aorta: 'Aorta. Main artery carrying oxygenated blood to the body.',
+  IVC: 'Inferior vena cava. Returns deoxygenated blood from the lower body.',
+};
+const PART_COLORS = {
+  LV: 0xc45c5c, RV: 0xd47878, LA: 0xa84444, RA: 0xb85858,
+  AO: 0x8b3a3a, PA: 0x9a4a4a, PV: 0x7a3a3a, SVC: 0x6a3232,
+};
+const MESH_NAME_TO_COLOR = {
+  ...PART_COLORS, Aorta: PART_COLORS.AO, IVC: PART_COLORS.SVC,
+};
+const DEFAULT_PART_COLOR = 0xc45c5c;
+
+const CATEGORY_COLORS = {
+  Normal: '#22c55e', MildModerateDilation: '#84cc16', VSD: '#a78bfa', ASD: '#c084fc',
+  DORV: '#f59e0b', DLoopTGA: '#3b82f6', LLoopTGA: '#60a5fa', ArterialSwitch: '#06b6d4',
+  AtrialSwitch: '#0891b2', SingleVentricle: '#ef4444', Fontan: '#f97316', Glenn: '#fb923c',
+  Heterotaxy: '#f43f5e', Dextrocardia: '#8b5cf6', Mesocardia: '#7c3aed',
+  _default: '#6b7280',
+};
+
+// ── Heartbeat ─────────────────────────────────────────────────────────────────
 function getHeartbeatMultiplier() {
   const t = (performance.now() / 1000) % BEAT_PERIOD;
   const u = t / BEAT_PERIOD;
   const lub = u < 0.2 ? Math.sin((u / 0.2) * Math.PI) : 0;
   const dub = u >= 0.28 && u < 0.48 ? Math.sin(((u - 0.28) / 0.2) * Math.PI) * 0.75 : 0;
-  const pulse = lub + dub;
-  return 1 + BEAT_AMPLITUDE * pulse;
+  return 1 + BEAT_AMPLITUDE * (lub + dub);
 }
 
-function smoothstep(edge0, edge1, x) {
-  const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+function smoothstep(e0, e1, x) {
+  const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0)));
   return t * t * (3 - 2 * t);
 }
 
@@ -112,25 +147,16 @@ function setupVertexPulse(mesh) {
   const rest = new Float32Array(pos.array.length);
   rest.set(pos.array);
   const cx = new THREE.Vector3();
-  for (let i = 0; i < count; i++) {
-    cx.x += rest[i * 3];
-    cx.y += rest[i * 3 + 1];
-    cx.z += rest[i * 3 + 2];
-  }
+  for (let i = 0; i < count; i++) { cx.x += rest[i*3]; cx.y += rest[i*3+1]; cx.z += rest[i*3+2]; }
   cx.divideScalar(count);
   let maxDist = 0;
   const dists = new Float32Array(count);
   for (let i = 0; i < count; i++) {
-    const dx = rest[i * 3] - cx.x, dy = rest[i * 3 + 1] - cx.y, dz = rest[i * 3 + 2] - cx.z;
-    const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
-    dists[i] = d;
-    if (d > maxDist) maxDist = d;
+    const d = Math.sqrt((rest[i*3]-cx.x)**2 + (rest[i*3+1]-cx.y)**2 + (rest[i*3+2]-cx.z)**2);
+    dists[i] = d; if (d > maxDist) maxDist = d;
   }
-  const innerR = 0.25 * maxDist;
-  const outerR = 0.65 * maxDist;
   const weights = new Float32Array(count);
-  for (let i = 0; i < count; i++)
-    weights[i] = 1 - smoothstep(innerR, outerR, dists[i]);
+  for (let i = 0; i < count; i++) weights[i] = 1 - smoothstep(0.25*maxDist, 0.65*maxDist, dists[i]);
   mesh.userData.pulseData = { rest, weights, cx, count, maxDist };
 }
 
@@ -141,12 +167,11 @@ function applyVertexPulse(mesh, mult) {
   const pos = mesh.geometry.attributes.position;
   const arr = pos.array;
   for (let i = 0; i < count; i++) {
-    const w = weights[i];
-    const s = 1 + (mult - 1) * w;
+    const s = 1 + (mult - 1) * weights[i];
     const j = i * 3;
-    arr[j] = cx.x + (rest[j] - cx.x) * s;
-    arr[j + 1] = cx.y + (rest[j + 1] - cx.y) * s;
-    arr[j + 2] = cx.z + (rest[j + 2] - cx.z) * s;
+    arr[j]   = cx.x + (rest[j]   - cx.x) * s;
+    arr[j+1] = cx.y + (rest[j+1] - cx.y) * s;
+    arr[j+2] = cx.z + (rest[j+2] - cx.z) * s;
   }
   pos.needsUpdate = true;
 }
@@ -159,16 +184,13 @@ function restoreVertexPulse(mesh) {
   pos.needsUpdate = true;
 }
 
+// ── Material / highlight ──────────────────────────────────────────────────────
 function collectMeshes(obj, list) {
   if (obj.isMesh) {
     const orig = obj.material;
-    // Always create a new material per mesh so part colors can be applied independently
     obj.material = new THREE.MeshStandardMaterial({
-      color: orig && orig.color ? orig.color.getHex() : 0xc45c5c,
-      roughness: 0.45,
-      metalness: 0.08,
-      emissive: 0x000000,
-      emissiveIntensity: 0,
+      color: orig?.color ? orig.color.getHex() : DEFAULT_PART_COLOR,
+      roughness: 0.45, metalness: 0.08, emissive: 0x000000, emissiveIntensity: 0,
     });
     list.push(obj);
   }
@@ -177,17 +199,15 @@ function collectMeshes(obj, list) {
 
 function ensureMaterialBaseline(mesh) {
   const m = mesh?.material;
-  if (!m) return;
-  if (!mesh.userData._matBase) {
-    mesh.userData._matBase = {
-      color: m.color ? m.color.clone() : new THREE.Color(DEFAULT_PART_COLOR),
-      opacity: m.opacity !== undefined ? m.opacity : 1,
-      transparent: !!m.transparent,
-      emissive: m.emissive ? m.emissive.clone() : new THREE.Color(0x000000),
-      emissiveIntensity: m.emissiveIntensity ?? 0,
-      depthWrite: m.depthWrite ?? true,
-    };
-  }
+  if (!m || mesh.userData._matBase) return;
+  mesh.userData._matBase = {
+    color: m.color ? m.color.clone() : new THREE.Color(DEFAULT_PART_COLOR),
+    opacity: m.opacity !== undefined ? m.opacity : 1,
+    transparent: !!m.transparent,
+    emissive: m.emissive ? m.emissive.clone() : new THREE.Color(0x000000),
+    emissiveIntensity: m.emissiveIntensity ?? 0,
+    depthWrite: m.depthWrite ?? true,
+  };
 }
 
 function restoreMaterialBaseline(mesh) {
@@ -195,12 +215,10 @@ function restoreMaterialBaseline(mesh) {
   const m = mesh?.material;
   if (!base || !m) return;
   if (m.color) m.color.copy(base.color);
-  m.opacity = base.opacity;
-  m.transparent = base.transparent;
+  m.opacity = base.opacity; m.transparent = base.transparent;
   if (m.emissive) m.emissive.copy(base.emissive);
   m.emissiveIntensity = base.emissiveIntensity;
-  m.depthWrite = base.depthWrite;
-  m.needsUpdate = true;
+  m.depthWrite = base.depthWrite; m.needsUpdate = true;
 }
 
 function applyFocusHighlight(selectedList) {
@@ -212,113 +230,54 @@ function applyFocusHighlight(selectedList) {
       const m = mesh.material;
       const isSel = selected.has(mesh);
       if (!selectedList || selectedList.length === 0) {
-        restoreMaterialBaseline(mesh);
-        mesh.renderOrder = 0;
-        continue;
+        restoreMaterialBaseline(mesh); mesh.renderOrder = 0; continue;
       }
+      const base = mesh.userData._matBase;
       if (isSel) {
-        const base = mesh.userData._matBase;
         if (m.color) m.color.copy(base.color);
-        m.opacity = 1;
-        m.transparent = false;
+        m.opacity = 1; m.transparent = false;
         if (m.emissive) m.emissive.setHex(0x000000);
-        m.emissiveIntensity = 0;
-        m.depthWrite = true;
-        mesh.renderOrder = 1;
+        m.emissiveIntensity = 0; m.depthWrite = true; mesh.renderOrder = 1;
       } else {
-        const base = mesh.userData._matBase;
         if (m.color) m.color.copy(base.color).multiplyScalar(DIM_DARKEN);
-        m.transparent = true;
-        m.opacity = DIM_OPACITY;
+        m.transparent = true; m.opacity = DIM_OPACITY;
         if (m.emissive) m.emissive.setHex(0x000000);
-        m.emissiveIntensity = 0;
-        m.depthWrite = false;
-        mesh.renderOrder = 0;
+        m.emissiveIntensity = 0; m.depthWrite = false; mesh.renderOrder = 0;
       }
       m.needsUpdate = true;
     }
   };
   applyTo(pickableMeshes);
-  if (dualViewEnabled && pickableMeshesRight.length) applyTo(pickableMeshesRight);
+  if (pickableMeshesRight.length) applyTo(pickableMeshesRight);
 }
-
-function partName(mesh) {
-  const n = mesh.name && mesh.name.trim();
-  return n || 'Heart';
-}
-
-// Anatomical part names we can scale from condition data
-const PART_NAMES = ['LV', 'RV', 'LA', 'RA', 'AO', 'PA', 'PV', 'SVC'];
-const PART_NAME_TO_VOL_KEY = { LV: 'Label_1_vol_ml', RV: 'Label_2_vol_ml', LA: 'Label_3_vol_ml', RA: 'Label_4_vol_ml', AO: 'Label_5_vol_ml', PA: 'Label_6_vol_ml', PV: 'Label_7_vol_ml', SVC: 'Label_8_vol_ml' };
-// OBJ object names that map to our part keys (e.g. heart_export.obj uses "Aorta", "IVC")
-const OBJ_NAME_TO_PART = { 'Aorta': 'AO', 'IVC': 'SVC' };
-
-const PART_DESCRIPTIONS = {
-  LV: 'Left ventricle. Pumps oxygenated blood to the body via the aorta.',
-  RV: 'Right ventricle. Pumps deoxygenated blood to the lungs via the pulmonary artery.',
-  LA: 'Left atrium. Receives oxygenated blood from the lungs.',
-  RA: 'Right atrium. Receives deoxygenated blood from the body.',
-  AO: 'Aorta. Main artery carrying oxygenated blood from the left ventricle to the body.',
-  PA: 'Pulmonary artery. Carries deoxygenated blood from the right ventricle to the lungs.',
-  PV: 'Pulmonary veins. Return oxygenated blood from the lungs to the left atrium.',
-  SVC: 'Superior vena cava. Large vein returning deoxygenated blood from the upper body to the right atrium.',
-  Aorta: 'Aorta. Main artery carrying oxygenated blood from the left ventricle to the body.',
-  IVC: 'Inferior vena cava. Large vein returning deoxygenated blood from the lower body to the right atrium.',
-};
-
-// Distinct colors per segment for anatomy visualization (hex).
-// Map both part keys (LV, AO) and OBJ group names (Aorta, IVC) so colors apply regardless of loader structure.
-const PART_COLORS = {
-  LV: 0xc45c5c,   // left ventricle – main red
-  RV: 0xd47878,   // right ventricle – lighter red
-  LA: 0xa84444,   // left atrium
-  RA: 0xb85858,   // right atrium
-  AO: 0x8b3a3a,   // aorta – darker
-  PA: 0x9a4a4a,   // pulmonary artery
-  PV: 0x7a3a3a,   // pulmonary veins
-  SVC: 0x6a3232,  // superior vena cava
-};
-const MESH_NAME_TO_COLOR = {
-  ...PART_COLORS,
-  Aorta: PART_COLORS.AO,
-  IVC: PART_COLORS.SVC,
-};
-const DEFAULT_PART_COLOR = 0xc45c5c;
 
 function applyPartColors(meshes, partMap) {
-  const map = partMap != null ? partMap : estimatedPartByMesh;
+  const map = partMap ?? estimatedPartByMesh;
   for (const mesh of meshes) {
     if (!mesh.material) continue;
-    const part = map?.get(mesh) ?? (PART_NAMES.includes(partName(mesh)) ? partName(mesh) : OBJ_NAME_TO_PART[partName(mesh)]);
-    let hex = part && PART_COLORS[part] != null ? PART_COLORS[part] : null;
-    if (hex == null) {
-      const name = (mesh.name && mesh.name.trim()) || '';
-      hex = MESH_NAME_TO_COLOR[name] != null ? MESH_NAME_TO_COLOR[name] : DEFAULT_PART_COLOR;
-    }
+    const name = (mesh.name || '').trim();
+    const part = map?.get(mesh) ?? (PART_NAMES.includes(name) ? name : OBJ_NAME_TO_PART[name]);
+    const hex = (part && PART_COLORS[part] != null) ? PART_COLORS[part]
+      : (MESH_NAME_TO_COLOR[name] != null ? MESH_NAME_TO_COLOR[name] : DEFAULT_PART_COLOR);
     mesh.material.color.setHex(hex);
   }
 }
 
-// Estimated part per mesh (from OBJ geometry when names are generic e.g. "Group8287")
+// ── Part estimation ───────────────────────────────────────────────────────────
 let estimatedPartByMesh = null;
 
 function estimatePartsFromGeometry(meshes, targetMap) {
   if (!meshes.length) return;
-  const box = new THREE.Box3();
-  const center = new THREE.Vector3();
-  const size = new THREE.Vector3();
+  const box = new THREE.Box3(), center = new THREE.Vector3(), size = new THREE.Vector3();
   const items = [];
   for (const mesh of meshes) {
     const geo = mesh.geometry;
     if (!geo?.attributes?.position) continue;
     if (!geo.boundingBox) geo.computeBoundingBox();
-    box.copy(geo.boundingBox);
-    box.getCenter(center);
-    box.getSize(size);
-    const volumeProxy = size.x * size.y * size.z;
-    items.push({ mesh, center: center.clone(), volumeProxy });
+    box.copy(geo.boundingBox); box.getCenter(center); box.getSize(size);
+    items.push({ mesh, center: center.clone(), volumeProxy: size.x * size.y * size.z });
   }
-  if (items.length === 0) return;
+  if (!items.length) return;
   items.sort((a, b) => b.volumeProxy - a.volumeProxy);
   const nSeeds = Math.min(8, items.length);
   const seeds = items.slice(0, nSeeds);
@@ -327,8 +286,7 @@ function estimatePartsFromGeometry(meshes, targetMap) {
   const map = targetMap || (estimatedPartByMesh = new Map());
   if (targetMap) targetMap.clear();
   for (const item of items) {
-    let bestPart = partOrder[0];
-    let bestD2 = Infinity;
+    let bestPart = partOrder[0], bestD2 = Infinity;
     for (const seed of seeds) {
       const d2 = item.center.distanceToSquared(seed.center);
       if (d2 < bestD2) { bestD2 = d2; bestPart = seed.part; }
@@ -338,34 +296,49 @@ function estimatePartsFromGeometry(meshes, targetMap) {
 }
 
 function getPartForScaling(mesh, side) {
-  const name = partName(mesh);
+  const name = (mesh.name || '').trim();
   if (PART_NAMES.includes(name)) return name;
   if (OBJ_NAME_TO_PART[name]) return OBJ_NAME_TO_PART[name];
   const map = side === 'right' ? estimatedPartByMeshRight : estimatedPartByMesh;
   return map?.get(mesh) ?? null;
 }
 
-// Condition-based scaling: estimate heart shape for selected congenital condition(s)
-let conditionData = null;
+function getPartNames() {
+  const byObjName = [...new Set(pickableMeshes.map(m => (m.name||'').trim()))].filter(Boolean).sort();
+  if (estimatedPartByMesh?.size > 0) {
+    const byPart = [...new Set([...estimatedPartByMesh.values()])].sort();
+    return [...byPart, ...byObjName.filter(n => !PART_NAMES.includes(n))];
+  }
+  return byObjName;
+}
 
+function meshesByName(name) {
+  const left = PART_NAMES.includes(name) && estimatedPartByMesh
+    ? pickableMeshes.filter(m => getPartForScaling(m) === name)
+    : pickableMeshes.filter(m => (m.name||'').trim() === name);
+  const right = PART_NAMES.includes(name) && estimatedPartByMeshRight
+    ? pickableMeshesRight.filter(m => getPartForScaling(m, 'right') === name)
+    : pickableMeshesRight.filter(m => (m.name||'').trim() === name);
+  return [...left, ...right];
+}
+
+// ── Condition scaling ─────────────────────────────────────────────────────────
 function computeScalesForConditions(selectedConditions) {
-  const def = {};
-  PART_NAMES.forEach(p => { def[p] = 1; });
+  const def = {}; PART_NAMES.forEach(p => { def[p] = 1; });
   if (!conditionData || !selectedConditions.length) return def;
   const { condition_multipliers } = conditionData;
-  const scalesByPart = {};
+  const out = {};
   for (const p of PART_NAMES) {
     const volKey = PART_NAME_TO_VOL_KEY[p];
-    let product = 1;
-    let n = 0;
+    let product = 1, n = 0;
     for (const c of selectedConditions) {
-      const mult = condition_multipliers[c] && condition_multipliers[c][volKey];
+      const mult = condition_multipliers[c]?.[volKey];
       if (mult != null && mult > 0) { product *= mult; n++; }
     }
-    const mult = n > 0 ? Math.pow(product, 1 / n) : 1;
-    scalesByPart[p] = Math.pow(Math.max(0.2, Math.min(5, mult)), 1 / 3);
+    const mult = n > 0 ? Math.pow(product, 1/n) : 1;
+    out[p] = Math.pow(Math.max(0.2, Math.min(5, mult)), 1/3);
   }
-  return scalesByPart;
+  return out;
 }
 
 function applyConditionScales(selectedValue, side) {
@@ -377,7 +350,7 @@ function applyConditionScales(selectedValue, side) {
   const baseScale = isRight ? heartBaseScaleRight : heartBaseScale;
   if (!meshes.length) return;
   let anyPartScaled = false;
-  meshes.forEach((mesh) => {
+  meshes.forEach(mesh => {
     const part = getPartForScaling(mesh, side);
     const s = part && scalesByPart[part] != null ? scalesByPart[part] : 1;
     if (part && scalesByPart[part] != null) anyPartScaled = true;
@@ -390,84 +363,114 @@ function applyConditionScales(selectedValue, side) {
         const m = conditionData.condition_multipliers[c]?.Total_heart_vol;
         if (m != null && m > 0) { product *= m; n++; }
       }
-      const mult = n > 0 ? Math.pow(product, 1 / n) : 1;
-      const groupScale = Math.pow(Math.max(0.5, Math.min(2, mult)), 1 / 3);
-      group.scale.setScalar(baseScale * groupScale);
+      const mult = n > 0 ? Math.pow(product, 1/n) : 1;
+      group.scale.setScalar(baseScale * Math.pow(Math.max(0.5, Math.min(2, mult)), 1/3));
     } else {
       group.scale.setScalar(baseScale);
     }
-    group.scale.y *= -1;  // preserve vertical flip
+    group.scale.y *= -1;
   }
 }
 
-function getPartNames() {
-  const byObjName = [...new Set(pickableMeshes.map((m) => partName(m)))].sort((a, b) => a.localeCompare(b));
-  if (estimatedPartByMesh && estimatedPartByMesh.size > 0) {
-    const byPart = [...new Set([...estimatedPartByMesh.values()])].sort((a, b) => a.localeCompare(b));
-    return [...byPart, ...byObjName.filter((n) => !PART_NAMES.includes(n))];
+// ── Outline helpers ───────────────────────────────────────────────────────────
+function removeMeshOutlines(meshes) {
+  if (!meshes) return;
+  for (const mesh of meshes) {
+    const lines = mesh.userData?.outlineLines;
+    if (lines) {
+      mesh.remove(lines);
+      lines.geometry?.dispose(); lines.material?.dispose();
+      mesh.userData.outlineLines = null;
+    }
   }
-  return byObjName;
 }
 
-function meshesByName(name) {
-  const left = PART_NAMES.includes(name) && estimatedPartByMesh
-    ? pickableMeshes.filter((m) => getPartForScaling(m) === name)
-    : pickableMeshes.filter((m) => partName(m) === name);
-  if (!dualViewEnabled || !pickableMeshesRight.length) return left;
-  const right = PART_NAMES.includes(name) && estimatedPartByMeshRight
-    ? pickableMeshesRight.filter((m) => getPartForScaling(m, 'right') === name)
-    : pickableMeshesRight.filter((m) => partName(m) === name);
-  return [...left, ...right];
+function updateSimulateOutlines(conditionValue) {
+  if (!pickableMeshesRight.length || !heartGroupRight) return;
+  removeMeshOutlines(pickableMeshesRight);
+  const conditions = conditionValue ? conditionValue.split(',').map(s => s.trim()).filter(Boolean) : [];
+  if (!conditions.length) return;
+  const scalesRight = computeScalesForConditions(conditions);
+  for (const mesh of pickableMeshesRight) {
+    const part = getPartForScaling(mesh, 'right');
+    if (!part) continue;
+    const s = scalesRight[part] ?? 1;
+    const diff = s - 1;
+    if (Math.abs(diff) < 0.01) continue;
+    const color = diff > 0 ? COMPARISON_GREEN : COMPARISON_RED;
+    const geo = mesh.geometry;
+    if (!geo?.attributes?.position) continue;
+    const edges = new THREE.EdgesGeometry(geo, 15);
+    const mat = new THREE.LineBasicMaterial({ color, linewidth: 3, depthTest: false, depthWrite: false });
+    const lines = new THREE.LineSegments(edges, mat);
+    mesh.add(lines);
+    mesh.userData.outlineLines = lines;
+  }
 }
 
+function updateScanOutlines(meshScales) {
+  if (!pickableMeshesRight.length || !heartGroupRight) return;
+  removeMeshOutlines(pickableMeshesRight);
+  for (const mesh of pickableMeshesRight) {
+    const name = (mesh.name || '').trim();
+    const s = meshScales?.[name] ?? 1;
+    const diff = s - 1;
+    if (Math.abs(diff) < 0.03) continue;
+    const color = diff > 0 ? COMPARISON_GREEN : COMPARISON_RED;
+    const geo = mesh.geometry;
+    if (!geo?.attributes?.position) continue;
+    const edges = new THREE.EdgesGeometry(geo, 15);
+    const mat = new THREE.LineBasicMaterial({ color, linewidth: 3, depthTest: false, depthWrite: false });
+    const lines = new THREE.LineSegments(edges, mat);
+    mesh.add(lines);
+    mesh.userData.outlineLines = lines;
+  }
+}
+
+// ── Slice ─────────────────────────────────────────────────────────────────────
 function updateSlicePlane() {
-  const axes = { x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] };
-  const [nx, ny, nz] = axes[sliceAxis];
+  const axes = { x: [1,0,0], y: [0,1,0], z: [0,0,1] };
+  const [nx,ny,nz] = axes[sliceAxis];
   slicePlane.normal.set(nx, ny, nz);
   slicePlane.constant = -slicePosition;
 }
 
 function applySliceToMeshes(enabled) {
-  const apply = (list) => list.forEach((mesh) => {
+  const apply = list => list.forEach(mesh => {
     if (mesh.material) {
       mesh.material.clippingPlanes = enabled ? [slicePlane] : [];
       mesh.material.side = enabled ? THREE.DoubleSide : THREE.FrontSide;
     }
   });
   apply(pickableMeshes);
-  if (dualViewEnabled && pickableMeshesRight.length) apply(pickableMeshesRight);
+  if (pickableMeshesRight.length) apply(pickableMeshesRight);
   applyFocusHighlight(selectedMeshes);
 }
 
+// ── Part selection / tag ──────────────────────────────────────────────────────
 function onPartSelect() {
   const select = document.getElementById('parts-select');
   const value = select?.value ?? '';
   selectedMeshes = value ? meshesByName(value) : [];
   applyFocusHighlight(selectedMeshes);
   updatePartTag(value || null);
-  if (dualViewEnabled) {
-    const lv = document.getElementById('condition-select-left')?.value ?? '';
-    const rv = document.getElementById('condition-select-right')?.value ?? '';
-    updateComparisonOutlines(lv, rv);
-  }
 }
 
-function updatePartTag(partName) {
+function updatePartTag(name) {
   const tag = document.getElementById('part-tag');
   const nameEl = document.getElementById('part-tag-name');
   const descEl = document.getElementById('part-tag-desc');
   if (!tag || !nameEl || !descEl) return;
-  if (!partName || !partName.trim()) {
-    tag.classList.remove('visible');
-    tag.setAttribute('aria-hidden', 'true');
-    return;
+  if (!name?.trim()) {
+    tag.classList.remove('visible'); tag.setAttribute('aria-hidden', 'true'); return;
   }
-  const name = partName.trim();
-  const desc = PART_DESCRIPTIONS[name] || PART_DESCRIPTIONS[OBJ_NAME_TO_PART[name]] || 'Heart structure.';
-  nameEl.textContent = name;
-  descEl.textContent = desc;
-  tag.classList.add('visible');
-  tag.setAttribute('aria-hidden', 'false');
+  nameEl.textContent = name.trim();
+  descEl.textContent = PART_DESCRIPTIONS[name] || PART_DESCRIPTIONS[OBJ_NAME_TO_PART[name]] || 'Heart structure.';
+  tag.classList.add('visible'); tag.setAttribute('aria-hidden', 'false');
+}
+
+function partName(mesh) {
+  return (mesh.name || '').trim() || 'Heart';
 }
 
 function pickPartFromMouse(event) {
@@ -478,23 +481,17 @@ function pickPartFromMouse(event) {
   const canvasX = (event.clientX - rect.left) / rect.width;
   const canvasY = (event.clientY - rect.top) / rect.height;
   let sc, cam;
-  if (dualViewEnabled && sceneRight && cameraRight) {
+  if (sceneRight && cameraRight) {
     if (canvasX < 0.5) {
-      mouse.x = (canvasX / 0.5) * 2 - 1;
-      mouse.y = -(canvasY * 2 - 1);
-      sc = pickableMeshes;
-      cam = camera;
+      mouse.x = (canvasX / 0.5) * 2 - 1; mouse.y = -(canvasY * 2 - 1);
+      sc = pickableMeshes; cam = camera;
     } else {
-      mouse.x = ((canvasX - 0.5) / 0.5) * 2 - 1;
-      mouse.y = -(canvasY * 2 - 1);
-      sc = pickableMeshesRight;
-      cam = cameraRight;
+      mouse.x = ((canvasX - 0.5) / 0.5) * 2 - 1; mouse.y = -(canvasY * 2 - 1);
+      sc = pickableMeshesRight; cam = cameraRight;
     }
   } else {
-    mouse.x = canvasX * 2 - 1;
-    mouse.y = -(canvasY * 2 - 1);
-    sc = pickableMeshes;
-    cam = camera;
+    mouse.x = canvasX * 2 - 1; mouse.y = -(canvasY * 2 - 1);
+    sc = pickableMeshes; cam = camera;
   }
   raycaster.setFromCamera(mouse, cam);
   const intersects = raycaster.intersectObjects(sc, true);
@@ -512,42 +509,30 @@ function pickPartFromMouse(event) {
   onPartSelect();
 }
 
-function getVizWrapper() {
-  return container && container.parentElement;
-}
+// ── Annotation: sticky notes ──────────────────────────────────────────────────
+function getVizWrapper() { return container?.parentElement; }
 
 function createStickyNote(clientX, clientY) {
   const wrapper = getVizWrapper();
   if (!wrapper) return;
   const rect = wrapper.getBoundingClientRect();
-  const left = clientX - rect.left;
-  const top = clientY - rect.top;
   const id = nextStickyId++;
   const colorKey = STICKY_COLORS[currentAnnotationTool] || 'yellow';
   const el = document.createElement('div');
   el.className = `sticky-note sticky-note-${colorKey}`;
   el.dataset.stickyId = String(id);
-  el.style.left = `${Math.max(0, left)}px`;
-  el.style.top = `${Math.max(0, top)}px`;
+  el.style.left = `${Math.max(0, clientX - rect.left)}px`;
+  el.style.top = `${Math.max(0, clientY - rect.top)}px`;
   const header = document.createElement('div');
   header.className = 'sticky-note-header';
-  const deleteBtn = document.createElement('button');
-  deleteBtn.type = 'button';
-  deleteBtn.className = 'sticky-note-delete';
-  deleteBtn.setAttribute('aria-label', 'Delete sticky note');
-  deleteBtn.textContent = '×';
-  deleteBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    removeStickyNote(id);
-  });
-  header.appendChild(deleteBtn);
+  const del = document.createElement('button');
+  del.type = 'button'; del.className = 'sticky-note-delete'; del.textContent = '×';
+  del.addEventListener('click', e => { e.stopPropagation(); removeStickyNote(id); });
+  header.appendChild(del);
   const body = document.createElement('textarea');
-  body.className = 'sticky-note-body';
-  body.placeholder = 'Note...';
-  body.setAttribute('rows', 3);
-  body.addEventListener('mousedown', (e) => e.stopPropagation());
-  el.appendChild(header);
-  el.appendChild(body);
+  body.className = 'sticky-note-body'; body.placeholder = 'Note...'; body.setAttribute('rows', 3);
+  body.addEventListener('mousedown', e => e.stopPropagation());
+  el.appendChild(header); el.appendChild(body);
   wrapper.appendChild(el);
   stickyNotes.push({ id, el, colorKey });
   setupStickyDrag(el, wrapper);
@@ -556,48 +541,39 @@ function createStickyNote(clientX, clientY) {
 function setupStickyDrag(stickyEl, wrapper) {
   const header = stickyEl.querySelector('.sticky-note-header');
   if (!header) return;
-  header.addEventListener('mousedown', (e) => {
-    if (e.button !== 0) return;
-    if (e.target.closest('.sticky-note-delete')) return;
-    e.preventDefault();
-    e.stopPropagation();
+  header.addEventListener('mousedown', e => {
+    if (e.button !== 0 || e.target.closest('.sticky-note-delete')) return;
+    e.preventDefault(); e.stopPropagation();
     const rect = wrapper.getBoundingClientRect();
-    let offsetX = e.clientX - rect.left - parseFloat(stickyEl.style.left || 0);
-    let offsetY = e.clientY - rect.top - parseFloat(stickyEl.style.top || 0);
-    const onMove = (ev) => {
-      const x = ev.clientX - rect.left - offsetX;
-      const y = ev.clientY - rect.top - offsetY;
-      stickyEl.style.left = `${Math.max(0, x)}px`;
-      stickyEl.style.top = `${Math.max(0, y)}px`;
+    let ox = e.clientX - rect.left - parseFloat(stickyEl.style.left || 0);
+    let oy = e.clientY - rect.top - parseFloat(stickyEl.style.top || 0);
+    const onMove = ev => {
+      stickyEl.style.left = `${Math.max(0, ev.clientX - rect.left - ox)}px`;
+      stickyEl.style.top = `${Math.max(0, ev.clientY - rect.top - oy)}px`;
     };
-    const onUp = () => {
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-    };
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
+    const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+    document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
   });
 }
 
 function removeStickyNote(id) {
-  const idx = stickyNotes.findIndex((s) => s.id === id);
+  const idx = stickyNotes.findIndex(s => s.id === id);
   if (idx === -1) return;
   const { el } = stickyNotes[idx];
-  if (el && el.parentNode) el.parentNode.removeChild(el);
+  if (el?.parentNode) el.parentNode.removeChild(el);
   stickyNotes.splice(idx, 1);
 }
 
+// ── Annotation: pen ───────────────────────────────────────────────────────────
 function setMouseNDCFromEvent(event) {
   const rect = renderer.domElement.getBoundingClientRect();
   const canvasX = (event.clientX - rect.left) / rect.width;
   const canvasY = (event.clientY - rect.top) / rect.height;
-  if (dualViewEnabled && cameraRight) {
+  if (sceneRight && cameraRight) {
     if (canvasX >= 0.5) return false;
-    mouse.x = (canvasX / 0.5) * 2 - 1;
-    mouse.y = -(canvasY * 2 - 1);
+    mouse.x = (canvasX / 0.5) * 2 - 1; mouse.y = -(canvasY * 2 - 1);
   } else {
-    mouse.x = canvasX * 2 - 1;
-    mouse.y = -(canvasY * 2 - 1);
+    mouse.x = canvasX * 2 - 1; mouse.y = -(canvasY * 2 - 1);
   }
   return true;
 }
@@ -605,42 +581,33 @@ function setMouseNDCFromEvent(event) {
 function getFirstHeartHit(cam) {
   raycaster.setFromCamera(mouse, cam);
   const intersects = raycaster.intersectObject(heartGroup, true);
-  const first = intersects.find((i) => i.object.userData.pinId == null);
-  return first || null;
+  return intersects.find(i => i.object.userData.pinId == null) || null;
 }
 
 function startPenStroke(worldPoint) {
   const localPoint = worldPoint.clone().applyMatrix4(heartGroup.matrixWorld.clone().invert());
   const points = [localPoint.clone()];
-  const colorHex = PEN_COLORS[currentPenColor] ?? 0xef4444;
-  const widthPx = PEN_WIDTHS[currentPenWidth] ?? 4;
-  const geometry = new THREE.BufferGeometry().setFromPoints(points);
-  const material = new THREE.LineBasicMaterial({ color: colorHex, linewidth: Math.max(1, widthPx) });
-  const line = new THREE.Line(geometry, material);
+  const line = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(points),
+    new THREE.LineBasicMaterial({ color: PEN_COLORS[currentPenColor] ?? 0xef4444, linewidth: Math.max(1, PEN_WIDTHS[currentPenWidth] ?? 4) })
+  );
   heartGroup.add(line);
   currentStroke = { line, points };
   penStrokes.push(currentStroke);
-  isDrawing = true;
-  controls.enabled = false;
-
-  penMoveHandler = (ev) => {
+  isDrawing = true; controls.enabled = false;
+  penMoveHandler = ev => {
     if (!currentStroke || !heartGroup) return;
     if (!setMouseNDCFromEvent(ev)) return;
-    const cam = dualViewEnabled && cameraRight ? camera : camera;
-    const hit = getFirstHeartHit(cam);
+    const hit = getFirstHeartHit(camera);
     if (!hit) return;
-    const localPoint = hit.point.clone().applyMatrix4(heartGroup.matrixWorld.clone().invert());
+    const lp = hit.point.clone().applyMatrix4(heartGroup.matrixWorld.clone().invert());
     const last = currentStroke.points[currentStroke.points.length - 1];
-    if (last.distanceTo(localPoint) < PEN_MIN_DIST) return;
-    currentStroke.points.push(localPoint);
+    if (last.distanceTo(lp) < PEN_MIN_DIST) return;
+    currentStroke.points.push(lp);
     currentStroke.line.geometry.dispose();
     currentStroke.line.geometry = new THREE.BufferGeometry().setFromPoints(currentStroke.points);
   };
-
-  penUpHandler = () => {
-    endPenStroke();
-  };
-
+  penUpHandler = () => endPenStroke();
   document.addEventListener('mousemove', penMoveHandler);
   document.addEventListener('mouseup', penUpHandler);
 }
@@ -648,73 +615,46 @@ function startPenStroke(worldPoint) {
 function endPenStroke() {
   if (currentStroke && currentStroke.points.length < 2) {
     heartGroup.remove(currentStroke.line);
-    currentStroke.line.geometry.dispose();
-    currentStroke.line.material.dispose();
+    currentStroke.line.geometry.dispose(); currentStroke.line.material.dispose();
     penStrokes.pop();
   }
-  isDrawing = false;
-  currentStroke = null;
-  controls.enabled = true;
-  if (penMoveHandler) {
-    document.removeEventListener('mousemove', penMoveHandler);
-    penMoveHandler = null;
-  }
-  if (penUpHandler) {
-    document.removeEventListener('mouseup', penUpHandler);
-    penUpHandler = null;
-  }
+  isDrawing = false; currentStroke = null; controls.enabled = true;
+  if (penMoveHandler) { document.removeEventListener('mousemove', penMoveHandler); penMoveHandler = null; }
+  if (penUpHandler) { document.removeEventListener('mouseup', penUpHandler); penUpHandler = null; }
 }
 
+// ── Annotation: pins ──────────────────────────────────────────────────────────
 function handleAnnotationClick(event) {
   if (event.button !== 0) return;
   const wrapper = getVizWrapper();
-  if (event.target.closest && event.target.closest('.sticky-note')) return;
-
-  if (currentAnnotationTool && currentAnnotationTool.startsWith('sticky-note-')) {
-    if (wrapper) {
-      createStickyNote(event.clientX, event.clientY);
-      event.preventDefault();
-    }
-    return;
+  if (event.target.closest?.('.sticky-note')) return;
+  if (currentAnnotationTool?.startsWith('sticky-note-')) {
+    if (wrapper) createStickyNote(event.clientX, event.clientY);
+    event.preventDefault(); return;
   }
-
   if (!heartGroup) return;
   const rect = renderer.domElement.getBoundingClientRect();
   const canvasX = (event.clientX - rect.left) / rect.width;
   const canvasY = (event.clientY - rect.top) / rect.height;
   let cam;
-  if (dualViewEnabled && cameraRight) {
-    if (canvasX >= 0.5) return;  // pins only on left heart for now
-    mouse.x = (canvasX / 0.5) * 2 - 1;
-    mouse.y = -(canvasY * 2 - 1);
-    cam = camera;
+  if (sceneRight && cameraRight) {
+    if (canvasX >= 0.5) return;
+    mouse.x = (canvasX / 0.5) * 2 - 1; mouse.y = -(canvasY * 2 - 1); cam = camera;
   } else {
-    mouse.x = canvasX * 2 - 1;
-    mouse.y = -(canvasY * 2 - 1);
-    cam = camera;
+    mouse.x = canvasX * 2 - 1; mouse.y = -(canvasY * 2 - 1); cam = camera;
   }
   raycaster.setFromCamera(mouse, cam);
   const intersects = raycaster.intersectObject(heartGroup, true);
   if (!intersects.length) return;
   const first = intersects[0];
-  const isPin = first.object.userData.pinId != null;
-  if (isPin) {
-    openPinCommentPanel(first.object.userData.pinId);
-    return;
-  }
-  if (currentAnnotationTool === 'pen') {
-    startPenStroke(first.point.clone());
-    event.preventDefault();
-    return;
-  }
-  if (!currentAnnotationTool || !currentAnnotationTool.startsWith('pin-')) return;
+  if (first.object.userData.pinId != null) { openPinCommentPanel(first.object.userData.pinId); return; }
+  if (currentAnnotationTool === 'pen') { startPenStroke(first.point.clone()); event.preventDefault(); return; }
+  if (!currentAnnotationTool?.startsWith('pin-')) return;
   const colorHex = PIN_COLORS[currentAnnotationTool];
   if (colorHex == null) return;
   const localPoint = first.point.clone().applyMatrix4(heartGroup.matrixWorld.clone().invert());
   const id = nextPinId++;
-  const geometry = new THREE.SphereGeometry(PIN_RADIUS, 16, 12);
-  const material = new THREE.MeshBasicMaterial({ color: colorHex });
-  const mesh = new THREE.Mesh(geometry, material);
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(PIN_RADIUS, 16, 12), new THREE.MeshBasicMaterial({ color: colorHex }));
   mesh.position.copy(localPoint);
   mesh.userData = { pinId: id, comment: '' };
   heartGroup.add(mesh);
@@ -723,7 +663,7 @@ function handleAnnotationClick(event) {
 }
 
 function openPinCommentPanel(pinId) {
-  const pin = pins.find((p) => p.id === pinId);
+  const pin = pins.find(p => p.id === pinId);
   if (!pin) return;
   commentPanelPinId = pinId;
   const panel = document.getElementById('pin-comment-panel');
@@ -733,475 +673,509 @@ function openPinCommentPanel(pinId) {
     pin.mesh.getWorldPosition(_pinWorldPos);
     _pinWorldPos.project(camera);
     const rect = container.getBoundingClientRect();
-    const w = dualViewEnabled ? rect.width * 0.5 : rect.width;
-    const px = dualViewEnabled ? (_pinWorldPos.x + 1) * 0.5 * w : (_pinWorldPos.x + 1) * 0.5 * rect.width;
+    const w = sceneRight ? rect.width * 0.5 : rect.width;
+    const px = sceneRight ? (_pinWorldPos.x + 1) * 0.5 * w : (_pinWorldPos.x + 1) * 0.5 * rect.width;
     const py = (1 - _pinWorldPos.y) * 0.5 * rect.height;
-    const offsetX = 14;
-    const offsetY = 10;
-    const panelW = 240;
-    const panelH = 160;
-    let left = px + offsetX;
-    let top = py + offsetY;
-    left = Math.max(8, Math.min(left, rect.width - panelW - 8));
-    top = Math.max(8, Math.min(top, rect.height - panelH - 8));
-    panel.style.left = `${left}px`;
-    panel.style.top = `${top}px`;
-    panel.classList.add('visible');
-    panel.setAttribute('aria-hidden', 'false');
+    let left = Math.max(8, Math.min(px + 14, rect.width - 248));
+    let top = Math.max(8, Math.min(py + 10, rect.height - 168));
+    panel.style.left = `${left}px`; panel.style.top = `${top}px`;
+    panel.classList.add('visible'); panel.setAttribute('aria-hidden', 'false');
     textarea?.focus();
   }
-  event?.preventDefault();
 }
 
 function closePinCommentPanel(save) {
   if (commentPanelPinId == null) return;
-  const pin = pins.find((p) => p.id === commentPanelPinId);
+  const pin = pins.find(p => p.id === commentPanelPinId);
   const textarea = document.getElementById('pin-comment-text');
-  if (save && pin && textarea) {
-    const text = textarea.value.trim();
-    pin.comment = text;
-    pin.mesh.userData.comment = text;
-  }
+  if (save && pin && textarea) { pin.comment = textarea.value.trim(); pin.mesh.userData.comment = pin.comment; }
   commentPanelPinId = null;
   const panel = document.getElementById('pin-comment-panel');
-  if (panel) {
-    panel.classList.remove('visible');
-    panel.setAttribute('aria-hidden', 'true');
-  }
+  if (panel) { panel.classList.remove('visible'); panel.setAttribute('aria-hidden', 'true'); }
   if (textarea) textarea.value = '';
 }
 
-// Load condition–feature data for "Simulate condition" (run data-processing/discover_trends.py to generate)
-fetch('./models/condition_effects.json')
-  .then((r) => r.ok ? r.json() : Promise.reject(new Error('Not found')))
-  .then((data) => { conditionData = data; })
-  .catch(() => {});
-
-function populateConditionOptions(selectEl) {
-  if (!selectEl) return;
-  selectEl.innerHTML = '<option value="">Baseline</option>';
-  if (conditionData?.condition_multipliers) {
-    const conds = Object.keys(conditionData.condition_multipliers).filter((c) => c !== 'Normal' && c !== 'CMRArtifactAO' && c !== 'CMRArtifactPA');
-    conds.sort((a, b) => a.localeCompare(b));
-    conds.forEach((c) => {
-      const opt = document.createElement('option');
-      opt.value = c;
-      opt.textContent = c;
-      selectEl.appendChild(opt);
-    });
-    const combos = [['VSD', 'ASD'], ['VSD', 'DORV'], ['ASD', 'DORV']];
-    combos.forEach(([a, b]) => {
-      if (conditionData.condition_multipliers[a] && conditionData.condition_multipliers[b]) {
-        const opt = document.createElement('option');
-        opt.value = `${a},${b}`;
-        opt.textContent = `${a} + ${b}`;
-        selectEl.appendChild(opt);
-      }
-    });
+// ── Right panel: tab switching ────────────────────────────────────────────────
+function switchTab(tabName) {
+  currentTab = tabName;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tabName));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('hidden', c.id !== `tab-${tabName}`));
+  if (tabName === 'simulate') {
+    resetRightToSimulate();
   }
 }
 
-function createRightHeart(scale) {
-  if (sceneRight || !heartGroup) return;
-  sceneRight = new THREE.Scene();
-  sceneRight.background = new THREE.Color(0x141418);
-  sceneRight.fog = new THREE.Fog(0x141418, 8, 18);
-  sceneRight.add(new THREE.AmbientLight(0xb8b8c8, 0.95));
-  const keyR = new THREE.DirectionalLight(0xffffff, 1.35);
-  keyR.position.set(3, 4, 5);
-  sceneRight.add(keyR);
-  const fillR = new THREE.DirectionalLight(0xe8e8f0, 0.6);
-  fillR.position.set(-2, 1, 3);
-  sceneRight.add(fillR);
+// ── Right panel: simulate comparison bars ─────────────────────────────────────
+function populateConditionOptions(selectEl) {
+  if (!selectEl || !conditionData?.condition_multipliers) return;
+  const current = selectEl.value;
+  selectEl.innerHTML = '<option value="">Baseline (same as reference)</option>';
+  const conds = Object.keys(conditionData.condition_multipliers)
+    .filter(c => c !== 'CMRArtifactAO' && c !== 'CMRArtifactPA')
+    .sort((a, b) => a.localeCompare(b));
+  conds.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    selectEl.appendChild(opt);
+  });
+  const combos = [['VSD','ASD'],['VSD','DORV'],['ASD','DORV']];
+  combos.forEach(([a, b]) => {
+    if (conditionData.condition_multipliers[a] && conditionData.condition_multipliers[b]) {
+      const opt = document.createElement('option');
+      opt.value = `${a},${b}`; opt.textContent = `${a} + ${b}`;
+      selectEl.appendChild(opt);
+    }
+  });
+  if (current) selectEl.value = current;
+}
 
-  cameraRight = new THREE.PerspectiveCamera(45, container.clientWidth / 2 / container.clientHeight, 0.1, 1000);
-  cameraRight.position.copy(camera.position);
-  cameraRight.quaternion.copy(camera.quaternion);
+function renderChangeBars(containerId, items) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  if (!items.length) {
+    el.innerHTML = '<div class="change-bar-empty">No significant changes from reference.</div>';
+    return;
+  }
+  const maxAbs = Math.max(5, ...items.map(i => Math.abs(i.volChangePct)));
+  el.innerHTML = items.map(item => {
+    const pct = item.volChangePct;
+    const barW = Math.min(100, (Math.abs(pct) / maxAbs) * 100);
+    const color = pct > 0 ? '#22c55e' : '#ef4444';
+    const sign = pct > 0 ? '+' : '';
+    return `<div class="change-bar-row">
+      <span class="change-bar-label">${item.part}</span>
+      <div class="change-bar-track"><div class="change-bar-fill" style="width:${barW.toFixed(1)}%;background:${color};opacity:0.85;"></div></div>
+      <span class="change-bar-pct" style="color:${color}">${sign}${pct.toFixed(1)}%</span>
+    </div>`;
+  }).join('');
+}
 
+function updateSimulatePanel(conditionValue) {
+  if (!conditionData) return;
+  const conditions = conditionValue ? conditionValue.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const scales = computeScalesForConditions(conditions);
+  const items = Object.entries(scales)
+    .map(([part, scale]) => ({ part, scale, volChangePct: (Math.pow(scale, 3) - 1) * 100 }))
+    .filter(d => Math.abs(d.volChangePct) > 0.5)
+    .sort((a, b) => Math.abs(b.volChangePct) - Math.abs(a.volChangePct));
+  renderChangeBars('sim-comparison-list', items);
+  const label = document.getElementById('right-panel-label');
+  if (label) label.textContent = conditionValue || 'Baseline';
+}
+
+// ── Right panel: scan analysis display ───────────────────────────────────────
+function renderConditionBars(scores) {
+  const el = document.getElementById('condition-attribution-list');
+  if (!el || !scores) return;
+  const entries = Object.entries(scores).slice(0, 6);
+  const maxScore = entries.length ? Math.max(...entries.map(e => e[1])) : 1;
+  el.innerHTML = entries.map(([cond, score]) => {
+    const barW = (score / maxScore) * 100;
+    return `<div class="attr-bar-row">
+      <span class="attr-bar-label" title="${cond}">${cond}</span>
+      <div class="attr-bar-track"><div class="attr-bar-fill" style="width:${barW.toFixed(1)}%;"></div></div>
+      <span class="attr-bar-score">${(score * 100).toFixed(0)}%</span>
+    </div>`;
+  }).join('');
+}
+
+function renderPCAScatter(patPCA) {
+  const svgEl = document.getElementById('pca-scatter');
+  if (!svgEl || !pcaLandscape) return;
+  const W = 260, H = 140, PAD = 16;
+  const { bounds, patients } = pcaLandscape;
+  const toX = pc1 => PAD + (pc1 - bounds.pc1_min) / (bounds.pc1_max - bounds.pc1_min) * (W - 2*PAD);
+  const toY = pc2 => H - PAD - (pc2 - bounds.pc2_min) / (bounds.pc2_max - bounds.pc2_min) * (H - 2*PAD);
+  const dots = patients.map(p => {
+    const c = CATEGORY_COLORS[p.category] || CATEGORY_COLORS._default;
+    return `<circle cx="${toX(p.pc1).toFixed(1)}" cy="${toY(p.pc2).toFixed(1)}" r="2.8" fill="${c}" opacity="0.55"/>`;
+  }).join('');
+  const px = toX(patPCA.pc1).toFixed(1), py = toY(patPCA.pc2).toFixed(1);
+  const highlight = `<circle cx="${px}" cy="${py}" r="5.5" fill="#f59e0b" stroke="#fff" stroke-width="1.8"/>`;
+  const axes = `
+    <line x1="${PAD}" y1="${H-PAD}" x2="${W-PAD}" y2="${H-PAD}" stroke="#333" stroke-width="0.5"/>
+    <line x1="${PAD}" y1="${PAD}" x2="${PAD}" y2="${H-PAD}" stroke="#333" stroke-width="0.5"/>
+    <text x="${W/2}" y="${H-2}" text-anchor="middle" font-size="8" fill="#444" font-family="sans-serif">PC1</text>
+    <text x="4" y="${H/2}" text-anchor="middle" font-size="8" fill="#444" font-family="sans-serif" transform="rotate(-90,4,${H/2})">PC2</text>`;
+  svgEl.innerHTML = axes + dots + highlight;
+}
+
+function renderNearestPatients(nearest) {
+  const el = document.getElementById('nearest-patients-list');
+  if (!el || !nearest) return;
+  el.innerHTML = nearest.map((n, i) => `
+    <div class="nearest-item">
+      <span class="nearest-rank">#${i+1}</span>
+      <span class="nearest-id">Patient ${n.patient_id}</span>
+      <span class="nearest-cat">${n.category || '—'}</span>
+      <span class="nearest-dist">d=${n.distance.toFixed(2)}</span>
+    </div>`).join('');
+}
+
+function displayScanAnalysis(analysis) {
+  const resultsEl = document.getElementById('scan-results');
+  if (resultsEl) resultsEl.classList.remove('hidden');
+  const pidEl = document.getElementById('scan-patient-id');
+  const catEl = document.getElementById('scan-category');
+  const badgeEl = document.getElementById('anomaly-badge');
+  if (pidEl) pidEl.textContent = `Patient ${analysis.patient_id}`;
+  if (catEl) catEl.textContent = analysis.ground_truth || '—';
+  if (badgeEl) {
+    const sev = analysis.severity;
+    const label = sev > 0.7 ? 'High Anomaly' : sev > 0.4 ? 'Moderate Anomaly' : 'Mild Anomaly';
+    const bg = sev > 0.7 ? 'rgba(239,68,68,0.18)' : sev > 0.4 ? 'rgba(245,158,11,0.18)' : 'rgba(34,197,94,0.18)';
+    badgeEl.textContent = `${label} · ${(sev*100).toFixed(0)}th percentile`;
+    badgeEl.style.background = bg;
+  }
+  renderConditionBars(analysis.condition_scores);
+  renderPCAScatter(analysis.pca);
+  const deviationItems = Object.entries(analysis.mesh_scales)
+    .map(([part, scale]) => ({ part, scale, volChangePct: (Math.pow(scale, 3) - 1) * 100 }))
+    .filter(d => Math.abs(d.volChangePct) > 1)
+    .sort((a, b) => Math.abs(b.volChangePct) - Math.abs(a.volChangePct));
+  renderChangeBars('deviation-list', deviationItems);
+  renderNearestPatients(analysis.nearest);
+  const label = document.getElementById('right-panel-label');
+  if (label) label.textContent = `Patient ${analysis.patient_id} · ${analysis.ground_truth}`;
+}
+
+function setScanStatus(msg, isError) {
+  const el = document.getElementById('scan-status');
+  if (!el) return;
+  if (!msg) { el.classList.add('hidden'); el.textContent = ''; return; }
+  el.classList.remove('hidden');
+  el.classList.toggle('error', !!isError);
+  el.textContent = msg;
+}
+
+// ── Right scene: load a different OBJ ────────────────────────────────────────
+function loadScanOBJ(url, meshScales, onReady) {
+  if (!sceneRight) return;
+  if (heartGroupRight) {
+    sceneRight.remove(heartGroupRight);
+    heartGroupRight = null; pickableMeshesRight = []; estimatedPartByMeshRight = null;
+  }
+  const scanLoader = new OBJLoader();
+  setScanStatus('Loading 3D mesh…');
+  scanLoader.load(url, group => {
+    const box = new THREE.Box3().setFromObject(group);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const s = 2.5 / Math.max(size.x, size.y, size.z);
+    group.position.sub(center);
+    group.scale.setScalar(s);
+    group.scale.y *= -1;
+    sceneRight.add(group);
+    heartGroupRight = group; heartBaseScaleRight = s;
+    pickableMeshesRight = [];
+    collectMeshes(group, pickableMeshesRight);
+    pickableMeshesRight.forEach(setupVertexPulse);
+    estimatedPartByMeshRight = new Map();
+    estimatePartsFromGeometry(pickableMeshesRight, estimatedPartByMeshRight);
+    applyPartColors(pickableMeshesRight, estimatedPartByMeshRight);
+    // Apply per-segment scales from analysis JSON (key = OBJ group name)
+    if (meshScales) {
+      pickableMeshesRight.forEach(mesh => {
+        const name = (mesh.name || '').trim();
+        mesh.scale.setScalar(meshScales[name] ?? 1);
+      });
+      updateScanOutlines(meshScales);
+    }
+    setScanStatus('');
+    if (onReady) onReady();
+  }, undefined, err => {
+    console.error('loadScanOBJ error:', err);
+    setScanStatus(`Failed to load mesh for this patient. Run generate_frontend_assets.py first.`, true);
+  });
+}
+
+function resetRightToSimulate() {
+  if (!sceneRight || !heartGroup) return;
+  if (heartGroupRight) {
+    sceneRight.remove(heartGroupRight);
+    heartGroupRight = null; pickableMeshesRight = []; estimatedPartByMeshRight = null;
+  }
+  removeMeshOutlines([]);
   const clone = heartGroup.clone(true);
   sceneRight.add(clone);
-  heartGroupRight = clone;
-  heartBaseScaleRight = scale;
-
+  heartGroupRight = clone; heartBaseScaleRight = heartBaseScale;
   pickableMeshesRight = [];
   collectMeshes(clone, pickableMeshesRight);
   pickableMeshesRight.forEach(setupVertexPulse);
   estimatedPartByMeshRight = new Map();
   estimatePartsFromGeometry(pickableMeshesRight, estimatedPartByMeshRight);
   applyPartColors(pickableMeshesRight, estimatedPartByMeshRight);
-
-  const leftSelect = document.getElementById('condition-select-left');
-  const rightSelect = document.getElementById('condition-select-right');
-  populateConditionOptions(leftSelect);
-  populateConditionOptions(rightSelect);
-  const mainSelect = document.getElementById('condition-select');
-  if (mainSelect?.value && leftSelect) leftSelect.value = mainSelect.value;
-
-  function onDualConditionChange() {
-    const lv = leftSelect?.value ?? '';
-    const rv = rightSelect?.value ?? '';
-    applyConditionScales(lv, 'left');
-    applyConditionScales(rv, 'right');
-    updateComparisonOutlines(lv, rv);
-    updateComparisonOverlay(lv, rv);
-    applyFocusHighlight(selectedMeshes);
+  const condSel = document.getElementById('condition-select');
+  if (condSel?.value) {
+    applyConditionScales(condSel.value, 'right');
+    updateSimulateOutlines(condSel.value);
+    updateSimulatePanel(condSel.value);
+  } else {
+    updateSimulatePanel('');
   }
-  if (leftSelect) leftSelect.addEventListener('change', onDualConditionChange);
-  if (rightSelect) rightSelect.addEventListener('change', onDualConditionChange);
-  onDualConditionChange();
+  if (sliceEnabled) applySliceToMeshes(true);
+  // Hide scan results
+  document.getElementById('scan-results')?.classList.add('hidden');
+  setScanStatus('');
+  document.getElementById('right-panel-label').textContent = condSel?.value || 'Baseline';
 }
 
-function setDualViewUI(on) {
-  const wrapSingle = document.getElementById('condition-wrap-single');
-  const wrapDual = document.getElementById('condition-wrap-dual');
-  const panels = document.getElementById('dual-view-panels');
-  if (wrapSingle) wrapSingle.style.display = on ? 'none' : 'flex';
-  if (wrapDual) wrapDual.style.display = on ? 'flex' : 'none';
-  if (panels) {
-    panels.classList.toggle('visible', on);
-    panels.setAttribute('aria-hidden', !on);
-  }
-  const overlay = document.getElementById('comparison-overlay');
-  if (overlay) overlay.style.display = on ? 'block' : 'none';
-  if (!on) updateComparisonOutlines(null, null);
-}
-
-function removeMeshOutlines(meshes) {
-  if (!meshes) return;
-  for (const mesh of meshes) {
-    const lines = mesh.userData?.outlineLines;
-    if (lines) {
-      mesh.remove(lines);
-      if (lines.geometry) lines.geometry.dispose();
-      if (lines.material) lines.material.dispose();
-      mesh.userData.outlineLines = null;
-    }
-  }
-}
-
-function updateComparisonOutlines(leftValue, rightValue) {
-  if (!pickableMeshesRight.length || !heartGroupRight) return;
-  removeMeshOutlines(pickableMeshesRight);
-  const scalesLeft = computeScalesForConditions(leftValue ? leftValue.split(',').map(s => s.trim()).filter(Boolean) : []);
-  const scalesRight = computeScalesForConditions(rightValue ? rightValue.split(',').map(s => s.trim()).filter(Boolean) : []);
-  const onlyHighlighted = comparisonOutlinesOnlyHighlighted && selectedMeshes.length > 0;
-  const selectedSet = new Set(selectedMeshes);
-  for (const mesh of pickableMeshesRight) {
-    if (onlyHighlighted && !selectedSet.has(mesh)) continue;
-    const part = getPartForScaling(mesh, 'right');
-    if (!part || !PART_NAMES.includes(part)) continue;
-    const sL = scalesLeft[part] ?? 1;
-    const sR = scalesRight[part] ?? 1;
-    const diff = sR - sL;
-    if (Math.abs(diff) < 0.001) continue;
-    const color = diff > 0 ? COMPARISON_GREEN : COMPARISON_RED;
-    const geo = mesh.geometry;
-    if (!geo?.attributes?.position) continue;
-    const edges = new THREE.EdgesGeometry(geo, 15);
-    const mat = new THREE.LineBasicMaterial({
-      color,
-      linewidth: 3,
-      depthTest: false,
-      depthWrite: false,
-      transparent: false,
-    });
-    const lines = new THREE.LineSegments(edges, mat);
-    mesh.add(lines);
-    mesh.userData.outlineLines = lines;
-  }
-}
-
-function getComparisonData(leftValue, rightValue) {
-  const scalesLeft = computeScalesForConditions(leftValue ? leftValue.split(',').map(s => s.trim()).filter(Boolean) : []);
-  const scalesRight = computeScalesForConditions(rightValue ? rightValue.split(',').map(s => s.trim()).filter(Boolean) : []);
-  const items = [];
-  for (const p of PART_NAMES) {
-    const sL = scalesLeft[p] ?? 1;
-    const sR = scalesRight[p] ?? 1;
-    const diff = sR - sL;
-    if (Math.abs(diff) < 0.001) continue;
-    const pct = ((sR / sL - 1) * 100);
-    items.push({
-      part: p,
-      scaleLeft: sL,
-      scaleRight: sR,
-      pct: pct,
-      expanded: diff > 0,
-    });
-  }
-  return items;
-}
-
-function updateComparisonOverlay(leftValue, rightValue) {
-  const el = document.getElementById('comparison-overlay');
-  if (!el) return;
-  const items = getComparisonData(leftValue, rightValue);
-  if (!items.length) {
-    el.innerHTML = '';
+// ── File upload handler ───────────────────────────────────────────────────────
+function handleFileUpload(file) {
+  if (!file) return;
+  const match = file.name.match(/pat(\d+)/i);
+  const pid = match ? parseInt(match[1]) : null;
+  if (!pid) {
+    setScanStatus(`Could not detect patient ID from "${file.name}". Expected format: pat{N}_cropped_seg.nii.gz`, true);
     return;
   }
-  el.innerHTML = items
-    .map(
-      (x) =>
-        `<div class="comparison-item ${x.expanded ? 'expanded' : 'compressed'}">
-          <span class="comparison-part">${x.part}</span>
-          <span class="comparison-scale">${x.scaleRight.toFixed(2)} vs ${x.scaleLeft.toFixed(2)}</span>
-          <span class="comparison-pct">${x.pct >= 0 ? '+' : ''}${x.pct.toFixed(1)}%</span>
-        </div>`
-    )
-    .join('');
+  setScanStatus(`Loading patient ${pid} analysis…`);
+  document.getElementById('scan-results')?.classList.add('hidden');
+  fetch(`./models/pat${pid}_analysis.json`)
+    .then(r => r.ok ? r.json() : Promise.reject(`No pre-computed analysis for patient ${pid}. Run generate_frontend_assets.py.`))
+    .then(analysis => {
+      loadScanOBJ(`./models/pat${pid}.obj`, analysis.mesh_scales, () => {
+        displayScanAnalysis(analysis);
+        setScanStatus('');
+      });
+    })
+    .catch(err => setScanStatus(typeof err === 'string' ? err : `Error: ${err.message}`, true));
 }
 
-const loader = new OBJLoader();
+// ── Create right scene ────────────────────────────────────────────────────────
+function createRightScene(scale) {
+  if (sceneRight || !heartGroup) return;
+  sceneRight = new THREE.Scene();
+  sceneRight.background = new THREE.Color(0x141418);
+  sceneRight.fog = new THREE.Fog(0x141418, 8, 18);
+  sceneRight.add(new THREE.AmbientLight(0xb8b8c8, 0.95));
+  const keyR = new THREE.DirectionalLight(0xffffff, 1.35); keyR.position.set(3, 4, 5); sceneRight.add(keyR);
+  const fillR = new THREE.DirectionalLight(0xe8e8f0, 0.6); fillR.position.set(-2, 1, 3); sceneRight.add(fillR);
+  cameraRight = new THREE.PerspectiveCamera(45, container.clientWidth / 2 / container.clientHeight, 0.1, 1000);
+  cameraRight.position.copy(camera.position);
+  cameraRight.quaternion.copy(camera.quaternion);
+  const clone = heartGroup.clone(true);
+  sceneRight.add(clone);
+  heartGroupRight = clone; heartBaseScaleRight = scale;
+  pickableMeshesRight = [];
+  collectMeshes(clone, pickableMeshesRight);
+  pickableMeshesRight.forEach(setupVertexPulse);
+  estimatedPartByMeshRight = new Map();
+  estimatePartsFromGeometry(pickableMeshesRight, estimatedPartByMeshRight);
+  applyPartColors(pickableMeshesRight, estimatedPartByMeshRight);
+}
 
-const HEART_MODEL_PATH = document.querySelector('meta[name="heart-model"]')?.getAttribute('content') || './SubTool-0-7412864.OBJ';
+// ── Data fetching ─────────────────────────────────────────────────────────────
+fetch('./models/condition_effects.json')
+  .then(r => r.ok ? r.json() : Promise.reject('condition_effects.json not found'))
+  .then(data => {
+    conditionData = data;
+    populateConditionOptions(document.getElementById('condition-select'));
+    updateSimulatePanel('');
+  })
+  .catch(err => console.warn('[HeartScape] condition_effects.json:', err));
+
+fetch('./models/pca_landscape.json')
+  .then(r => r.ok ? r.json() : Promise.reject('pca_landscape.json not found'))
+  .then(data => { pcaLandscape = data; })
+  .catch(err => console.warn('[HeartScape] pca_landscape.json:', err));
+
+// ── Model load ────────────────────────────────────────────────────────────────
+const HEART_MODEL_PATH = document.querySelector('meta[name="heart-model"]')?.getAttribute('content') || './models/pat1.obj';
 const modelUrl = (HEART_MODEL_PATH.startsWith('/') && window.location.protocol !== 'file:')
   ? window.location.origin + HEART_MODEL_PATH
   : new URL(HEART_MODEL_PATH, window.location.href).href;
 
 function setLoadStatus(msg, isError) {
   const el = document.getElementById('load-status');
-  if (el) {
-    el.textContent = msg;
-    el.style.display = 'block';
-    el.style.color = isError ? '#e86c6c' : '#888';
-  }
+  if (el) { el.textContent = msg; el.style.display = msg ? 'block' : 'none'; el.style.color = isError ? '#e86c6c' : '#888'; }
 }
+setLoadStatus('Loading reference heart (Patient 1)…');
 
-setLoadStatus('Loading model…');
+const loader = new OBJLoader();
+loader.load(modelUrl, group => {
+  setLoadStatus('');
+  scene.add(group);
+  const box = new THREE.Box3().setFromObject(group);
+  const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  const scale = 2.5 / Math.max(size.x, size.y, size.z);
+  group.position.sub(center);
+  heartGroup = group; heartBaseScale = scale;
+  group.scale.setScalar(scale);
+  group.scale.y *= -1;
 
-loader.load(
-  modelUrl,
-  (group) => {
-    setLoadStatus('');
-    const statusEl = document.getElementById('load-status');
-    if (statusEl) statusEl.style.display = 'none';
-    scene.add(group);
+  pickableMeshes = [];
+  collectMeshes(group, pickableMeshes);
+  pickableMeshes.forEach(setupVertexPulse);
+  estimatePartsFromGeometry(pickableMeshes);
+  applyPartColors(pickableMeshes);
 
-    const box = new THREE.Box3().setFromObject(group);
-    const center = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z);
-    const scale = 2.5 / maxDim;
-    group.position.sub(center);
-    heartGroup = group;
-    heartBaseScale = scale;
-    group.scale.setScalar(scale);
-    group.scale.y *= -1;  // flip vertically
+  // Initialize dual view immediately
+  createRightScene(scale);
+  const w = container.clientWidth, h = container.clientHeight;
+  camera.aspect = (w / 2) / h;
+  if (cameraRight) { cameraRight.aspect = (w / 2) / h; cameraRight.updateProjectionMatrix(); }
+  camera.updateProjectionMatrix();
 
-    pickableMeshes = [];
-    collectMeshes(group, pickableMeshes);
-    pickableMeshes.forEach(setupVertexPulse);
-    estimatePartsFromGeometry(pickableMeshes);
-    applyPartColors(pickableMeshes);
-
-    // Condition selector: estimate heart shape for selected congenital condition(s)
-    const conditionSelect = document.getElementById('condition-select');
-    if (conditionSelect) {
-      populateConditionOptions(conditionSelect);
-      conditionSelect.addEventListener('change', () => applyConditionScales(conditionSelect.value));
-      applyConditionScales('');
-    }
-
-    // Dual view: side-by-side hearts with independent Simulate, shared camera
-    const dualViewBtn = document.getElementById('dual-view-btn');
-    if (dualViewBtn) {
-      dualViewBtn.addEventListener('click', () => {
-        dualViewEnabled = !dualViewEnabled;
-        if (dualViewEnabled) createRightHeart(scale);
-        setDualViewUI(dualViewEnabled);
-        dualViewBtn.textContent = dualViewEnabled ? 'Single view' : 'Dual view';
-        dualViewBtn.classList.toggle('active', dualViewEnabled);
-        dualViewBtn.setAttribute('aria-pressed', dualViewEnabled);
-        if (sliceEnabled) applySliceToMeshes(true);
-        onPartSelect();
-        const w = container.clientWidth;
-        const h = container.clientHeight;
-        if (dualViewEnabled && cameraRight) {
-          camera.aspect = (w / 2) / h;
-          cameraRight.aspect = (w / 2) / h;
-          cameraRight.updateProjectionMatrix();
-        } else {
-          camera.aspect = w / h;
-        }
-        camera.updateProjectionMatrix();
-      });
-    }
-
-    const outlinesCb = document.getElementById('outlines-only-highlighted');
-    if (outlinesCb) {
-      outlinesCb.checked = comparisonOutlinesOnlyHighlighted;
-      outlinesCb.addEventListener('change', () => {
-        comparisonOutlinesOnlyHighlighted = outlinesCb.checked;
-        if (dualViewEnabled && heartGroupRight) {
-          const lv = document.getElementById('condition-select-left')?.value ?? '';
-          const rv = document.getElementById('condition-select-right')?.value ?? '';
-          updateComparisonOutlines(lv, rv);
-        }
-      });
-    }
-
-    const btn = document.getElementById('heartbeat-btn');
-    if (btn) {
-      btn.addEventListener('click', () => {
-        heartbeatEnabled = !heartbeatEnabled;
-        pulseRestored = false;
-        btn.textContent = heartbeatEnabled ? 'Stop heartbeat' : 'Start heartbeat';
-        btn.classList.toggle('active', heartbeatEnabled);
-        btn.setAttribute('aria-pressed', heartbeatEnabled);
-      });
-    }
-
-    renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
-    renderer.domElement.addEventListener('mousedown', (e) => {
-      if (e.button === 0) handleAnnotationClick(e);
-      else if (e.button === 2) pickPartFromMouse(e);
+  // Populate condition selector
+  const conditionSelect = document.getElementById('condition-select');
+  if (conditionSelect) {
+    populateConditionOptions(conditionSelect);
+    conditionSelect.addEventListener('change', () => {
+      const val = conditionSelect.value;
+      applyConditionScales(val, 'right');
+      updateSimulateOutlines(val);
+      updateSimulatePanel(val);
     });
-
-    const partTag = document.getElementById('part-tag');
-    const partTagHandle = document.getElementById('part-tag-handle');
-    if (partTag && partTagHandle) {
-      let dragOffsetX = 0, dragOffsetY = 0;
-      partTagHandle.addEventListener('mousedown', (e) => {
-        if (e.button !== 0) return;
-        e.preventDefault();
-        const rect = partTag.getBoundingClientRect();
-        const wrap = partTag.parentElement?.getBoundingClientRect();
-        if (!wrap) return;
-        dragOffsetX = e.clientX - rect.left;
-        dragOffsetY = e.clientY - rect.top;
-        const onMove = (ev) => {
-          const x = ev.clientX - wrap.left - dragOffsetX;
-          const y = ev.clientY - wrap.top - dragOffsetY;
-          partTag.style.left = `${Math.max(0, x)}px`;
-          partTag.style.top = `${Math.max(0, y)}px`;
-        };
-        const onUp = () => {
-          document.removeEventListener('mousemove', onMove);
-          document.removeEventListener('mouseup', onUp);
-        };
-        document.addEventListener('mousemove', onMove);
-        document.addEventListener('mouseup', onUp);
-      });
-    }
-
-    const select = document.getElementById('parts-select');
-    if (select) {
-      select.innerHTML = '<option value="">—</option>';
-      getPartNames().forEach((name) => {
-        const opt = document.createElement('option');
-        opt.value = name;
-        opt.textContent = name;
-        select.appendChild(opt);
-      });
-      select.addEventListener('change', onPartSelect);
-    }
-
-    const sliceBtn = document.getElementById('slice-btn');
-    const sliceControls = document.getElementById('slice-controls');
-    const slicePositionInput = document.getElementById('slice-position');
-    const axisButtons = document.querySelectorAll('.slice-controls .axis-row button');
-
-    if (sliceBtn) {
-      sliceBtn.addEventListener('click', () => {
-        sliceEnabled = !sliceEnabled;
-        sliceBtn.textContent = sliceEnabled ? 'Exit slice view' : 'Slice view';
-        sliceBtn.classList.toggle('active', sliceEnabled);
-        sliceBtn.setAttribute('aria-pressed', sliceEnabled);
-        if (sliceControls) {
-          sliceControls.classList.toggle('visible', sliceEnabled);
-          sliceControls.setAttribute('aria-hidden', !sliceEnabled);
-        }
-        updateSlicePlane();
-        applySliceToMeshes(sliceEnabled);
-      });
-    }
-
-    if (slicePositionInput) {
-      slicePositionInput.addEventListener('input', () => {
-        slicePosition = parseFloat(slicePositionInput.value);
-        updateSlicePlane();
-        if (sliceEnabled) applySliceToMeshes(true);
-      });
-    }
-
-    axisButtons.forEach((btn) => {
-      btn.addEventListener('click', () => {
-        axisButtons.forEach((b) => b.classList.remove('active'));
-        btn.classList.add('active');
-        sliceAxis = btn.dataset.axis;
-        updateSlicePlane();
-        if (sliceEnabled) applySliceToMeshes(true);
-      });
-    });
-
-    const annotationMenuBtn = document.getElementById('annotation-menu-btn');
-    const annotationPanel = document.getElementById('annotation-panel');
-    if (annotationMenuBtn && annotationPanel) {
-      annotationMenuBtn.addEventListener('click', () => {
-        annotationPanelOpen = !annotationPanelOpen;
-        annotationPanel.classList.toggle('visible', annotationPanelOpen);
-        annotationMenuBtn.classList.toggle('active', annotationPanelOpen);
-        annotationMenuBtn.setAttribute('aria-expanded', annotationPanelOpen);
-        const svg = annotationMenuBtn.querySelector('svg');
-        if (svg) svg.style.transform = annotationPanelOpen ? 'rotate(180deg)' : '';
-      });
-    }
-    const annotationToolBtns = document.querySelectorAll('.annotation-tool');
-    annotationToolBtns.forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const tool = btn.dataset.tool;
-        if (currentAnnotationTool === tool) {
-          currentAnnotationTool = null;
-          btn.classList.remove('active');
-        } else {
-          annotationToolBtns.forEach((b) => b.classList.remove('active'));
-          btn.classList.add('active');
-          currentAnnotationTool = tool;
-        }
-      });
-    });
-
-    document.querySelectorAll('.pen-color-swatch').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const color = btn.dataset.penColor;
-        if (!color) return;
-        currentPenColor = color;
-        document.querySelectorAll('.pen-color-swatch').forEach((b) => b.classList.remove('active'));
-        btn.classList.add('active');
-      });
-    });
-    document.querySelectorAll('.pen-width-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const width = btn.dataset.penWidth;
-        if (!width) return;
-        currentPenWidth = width;
-        document.querySelectorAll('.pen-width-btn').forEach((b) => b.classList.remove('active'));
-        btn.classList.add('active');
-      });
-    });
-
-    const pinCommentDone = document.getElementById('pin-comment-done');
-    const pinCommentText = document.getElementById('pin-comment-text');
-    if (pinCommentDone) pinCommentDone.addEventListener('click', () => closePinCommentPanel(true));
-    if (pinCommentText) pinCommentText.addEventListener('blur', () => { if (commentPanelPinId != null) closePinCommentPanel(true); });
-  },
-  (xhr) => {
-    if (xhr.lengthComputable) {
-      const pct = Math.round((xhr.loaded / xhr.total) * 100);
-      setLoadStatus(`Loading model… ${pct}%`);
-    }
-  },
-  (err) => {
-    console.error('Failed to load heart model', err);
-    setLoadStatus('Failed to load model. Check console (F12). Use a local server (e.g. python3 -m http.server 8000).', true);
+    if (conditionSelect.value) applyConditionScales(conditionSelect.value, 'right');
   }
-);
 
+  // Tab switching
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
+
+  // File upload
+  const fileInput = document.getElementById('scan-file-input');
+  if (fileInput) fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFileUpload(e.target.files[0]); });
+
+  // Drag-and-drop on drop zone
+  const dropZone = document.getElementById('scan-drop-zone');
+  if (dropZone) {
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.borderColor = 'rgba(255,255,255,0.45)'; });
+    dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = ''; });
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault(); dropZone.style.borderColor = '';
+      const file = e.dataTransfer?.files[0];
+      if (file) { switchTab('scan'); handleFileUpload(file); }
+    });
+  }
+
+  // Part highlight
+  const partsSelect = document.getElementById('parts-select');
+  if (partsSelect) {
+    partsSelect.innerHTML = '<option value="">—</option>';
+    getPartNames().forEach(name => {
+      const opt = document.createElement('option');
+      opt.value = name; opt.textContent = name;
+      partsSelect.appendChild(opt);
+    });
+    partsSelect.addEventListener('change', onPartSelect);
+  }
+
+  // Heartbeat
+  const beatBtn = document.getElementById('heartbeat-btn');
+  if (beatBtn) beatBtn.addEventListener('click', () => {
+    heartbeatEnabled = !heartbeatEnabled;
+    pulseRestored = false;
+    beatBtn.textContent = heartbeatEnabled ? 'Stop heartbeat' : 'Start heartbeat';
+    beatBtn.classList.toggle('active', heartbeatEnabled);
+    beatBtn.setAttribute('aria-pressed', heartbeatEnabled);
+  });
+
+  // Slice
+  const sliceBtn = document.getElementById('slice-btn');
+  const sliceControls = document.getElementById('slice-controls');
+  const slicePositionInput = document.getElementById('slice-position');
+  const axisButtons = document.querySelectorAll('.slice-controls .axis-row button');
+  if (sliceBtn) sliceBtn.addEventListener('click', () => {
+    sliceEnabled = !sliceEnabled;
+    sliceBtn.textContent = sliceEnabled ? 'Exit slice view' : 'Slice view';
+    sliceBtn.classList.toggle('active', sliceEnabled);
+    sliceBtn.setAttribute('aria-pressed', sliceEnabled);
+    sliceControls?.classList.toggle('visible', sliceEnabled);
+    sliceControls?.setAttribute('aria-hidden', !sliceEnabled);
+    updateSlicePlane(); applySliceToMeshes(sliceEnabled);
+  });
+  if (slicePositionInput) slicePositionInput.addEventListener('input', () => {
+    slicePosition = parseFloat(slicePositionInput.value);
+    updateSlicePlane(); if (sliceEnabled) applySliceToMeshes(true);
+  });
+  axisButtons.forEach(btn => btn.addEventListener('click', () => {
+    axisButtons.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active'); sliceAxis = btn.dataset.axis;
+    updateSlicePlane(); if (sliceEnabled) applySliceToMeshes(true);
+  }));
+
+  // Mouse events on canvas
+  renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
+  renderer.domElement.addEventListener('mousedown', e => {
+    if (e.button === 0) handleAnnotationClick(e);
+    else if (e.button === 2) pickPartFromMouse(e);
+  });
+
+  // Annotation panel toggle
+  const annotBtn = document.getElementById('annotation-menu-btn');
+  const annotPanel = document.getElementById('annotation-panel');
+  if (annotBtn && annotPanel) {
+    annotBtn.addEventListener('click', () => {
+      annotationPanelOpen = !annotationPanelOpen;
+      annotPanel.classList.toggle('visible', annotationPanelOpen);
+      annotBtn.classList.toggle('active', annotationPanelOpen);
+      annotBtn.setAttribute('aria-expanded', annotationPanelOpen);
+      const svg = annotBtn.querySelector('svg');
+      if (svg) svg.style.transform = annotationPanelOpen ? 'rotate(180deg)' : '';
+    });
+  }
+  document.querySelectorAll('.annotation-tool').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tool = btn.dataset.tool;
+      currentAnnotationTool = currentAnnotationTool === tool ? null : tool;
+      document.querySelectorAll('.annotation-tool').forEach(b => b.classList.remove('active'));
+      if (currentAnnotationTool) btn.classList.add('active');
+    });
+  });
+  document.querySelectorAll('.pen-color-swatch').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentPenColor = btn.dataset.penColor || currentPenColor;
+      document.querySelectorAll('.pen-color-swatch').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+  document.querySelectorAll('.pen-width-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentPenWidth = btn.dataset.penWidth || currentPenWidth;
+      document.querySelectorAll('.pen-width-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+  const pinDone = document.getElementById('pin-comment-done');
+  const pinText = document.getElementById('pin-comment-text');
+  if (pinDone) pinDone.addEventListener('click', () => closePinCommentPanel(true));
+  if (pinText) pinText.addEventListener('blur', () => { if (commentPanelPinId != null) closePinCommentPanel(true); });
+
+  // Part tag dragging
+  const partTag = document.getElementById('part-tag');
+  const partTagHandle = document.getElementById('part-tag-handle');
+  if (partTag && partTagHandle) {
+    partTagHandle.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      const rect = partTag.getBoundingClientRect();
+      const wrap = partTag.parentElement?.getBoundingClientRect();
+      if (!wrap) return;
+      let ox = e.clientX - rect.left, oy = e.clientY - rect.top;
+      const onMove = ev => {
+        partTag.style.left = `${Math.max(0, ev.clientX - wrap.left - ox)}px`;
+        partTag.style.top = `${Math.max(0, ev.clientY - wrap.top - oy)}px`;
+      };
+      const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+      document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
+    });
+  }
+
+}, xhr => {
+  if (xhr.lengthComputable) setLoadStatus(`Loading… ${Math.round(xhr.loaded/xhr.total*100)}%`);
+}, err => {
+  console.error('Failed to load heart model:', err);
+  setLoadStatus('Failed to load model. Make sure pat1.obj exists in models/ and run from a local server.', true);
+});
+
+// ── Resize ────────────────────────────────────────────────────────────────────
 window.addEventListener('resize', () => {
-  const w = container.clientWidth;
-  const h = container.clientHeight;
-  if (dualViewEnabled && cameraRight) {
+  const w = container.clientWidth, h = container.clientHeight;
+  if (sceneRight && cameraRight) {
     camera.aspect = (w / 2) / h;
     cameraRight.aspect = (w / 2) / h;
     cameraRight.updateProjectionMatrix();
@@ -1212,41 +1186,31 @@ window.addEventListener('resize', () => {
   renderer.setSize(w, h);
 });
 
+// ── Animate ───────────────────────────────────────────────────────────────────
 function animate() {
   requestAnimationFrame(animate);
   const mult = getHeartbeatMultiplier();
   if (heartbeatEnabled) {
-    pickableMeshes.forEach((m) => applyVertexPulse(m, mult));
-    if (dualViewEnabled && pickableMeshesRight.length) pickableMeshesRight.forEach((m) => applyVertexPulse(m, mult));
+    pickableMeshes.forEach(m => applyVertexPulse(m, mult));
+    pickableMeshesRight.forEach(m => applyVertexPulse(m, mult));
     pulseRestored = false;
   } else if (!pulseRestored) {
     pickableMeshes.forEach(restoreVertexPulse);
-    if (dualViewEnabled && pickableMeshesRight.length) pickableMeshesRight.forEach(restoreVertexPulse);
+    pickableMeshesRight.forEach(restoreVertexPulse);
     pulseRestored = true;
   }
   controls.update();
-  if (dualViewEnabled && sceneRight && cameraRight) {
+  if (sceneRight && cameraRight) {
     cameraRight.position.copy(camera.position);
     cameraRight.quaternion.copy(camera.quaternion);
-    const w = container.clientWidth;
-    const h = container.clientHeight;
+    const w = container.clientWidth, h = container.clientHeight;
     const half = Math.floor(w / 2);
-    renderer.autoClear = false;
-    renderer.clear();
-    // Left viewport: clip to left half
-    renderer.setViewport(0, 0, half, h);
-    renderer.setScissor(0, 0, half, h);
-    renderer.setScissorTest(true);
+    renderer.autoClear = false; renderer.clear();
+    renderer.setViewport(0, 0, half, h); renderer.setScissor(0, 0, half, h); renderer.setScissorTest(true);
     renderer.render(scene, camera);
-    // Right viewport: clip to right half
-    renderer.setViewport(half, 0, half, h);
-    renderer.setScissor(half, 0, half, h);
-    renderer.setScissorTest(true);
+    renderer.setViewport(half, 0, half, h); renderer.setScissor(half, 0, half, h); renderer.setScissorTest(true);
     renderer.render(sceneRight, cameraRight);
-    // Reset
-    renderer.setScissorTest(false);
-    renderer.setViewport(0, 0, w, h);
-    renderer.autoClear = true;
+    renderer.setScissorTest(false); renderer.setViewport(0, 0, w, h); renderer.autoClear = true;
   } else {
     renderer.render(scene, camera);
   }
