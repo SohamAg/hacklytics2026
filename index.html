@@ -120,6 +120,7 @@
     }
     .toolbar .heartbeat-btn,
     .toolbar .slice-btn,
+    .toolbar .dual-view-btn,
     .toolbar .parts-wrap select,
     .toolbar .condition-wrap select {
       font-family: inherit;
@@ -134,9 +135,11 @@
       outline: none;
     }
     .toolbar .heartbeat-btn:hover,
-    .toolbar .slice-btn:hover { border-color: rgba(255,255,255,0.2); }
+    .toolbar .slice-btn:hover,
+    .toolbar .dual-view-btn:hover { border-color: rgba(255,255,255,0.2); }
     .toolbar .heartbeat-btn.active,
-    .toolbar .slice-btn.active {
+    .toolbar .slice-btn.active,
+    .toolbar .dual-view-btn.active {
       background: rgba(255,255,255,0.12);
       border-color: rgba(255,255,255,0.2);
     }
@@ -153,6 +156,29 @@
       background-repeat: no-repeat;
       background-position: right 0.4rem center;
     }
+    .toolbar .dual-view-conditions select { min-width: 6.5rem; }
+    .viewport-labels {
+      display: none;
+      position: absolute;
+      top: 2.75rem;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+      z-index: 5;
+    }
+    .viewport-labels.visible { display: block; }
+    .viewport-label {
+      position: absolute;
+      top: 0.75rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: rgba(255,255,255,0.5);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .viewport-label.viewport-left { left: 50%; transform: translate(-100%, 0); margin-left: -0.5rem; }
+    .viewport-label.viewport-right { left: 50%; margin-left: 0.5rem; }
     .slice-controls {
       display: none;
       position: absolute;
@@ -271,9 +297,20 @@
         <div class="toolbar">
           <button type="button" class="heartbeat-btn" id="heartbeat-btn" aria-pressed="false">Start heartbeat</button>
           <button type="button" class="slice-btn" id="slice-btn" aria-pressed="false">Slice view</button>
-          <div class="condition-wrap">
+          <button type="button" class="dual-view-btn" id="dual-view-btn" aria-pressed="false">Dual view</button>
+          <div class="condition-wrap" id="condition-wrap-single">
             <span>Simulate</span>
             <select id="condition-select" aria-label="Simulate congenital condition">
+              <option value="">Baseline</option>
+            </select>
+          </div>
+          <div class="condition-wrap dual-view-conditions" id="condition-wrap-dual" style="display: none;">
+            <span>Left</span>
+            <select id="condition-select-left" aria-label="Simulate condition (left heart)">
+              <option value="">Baseline</option>
+            </select>
+            <span>Right</span>
+            <select id="condition-select-right" aria-label="Simulate condition (right heart)">
               <option value="">Baseline</option>
             </select>
           </div>
@@ -283,6 +320,10 @@
               <option value="">—</option>
             </select>
           </div>
+        </div>
+        <div class="viewport-labels" id="viewport-labels" aria-hidden="true">
+          <span class="viewport-label viewport-left">Left</span>
+          <span class="viewport-label viewport-right">Right</span>
         </div>
         <div class="slice-controls" id="slice-controls" aria-hidden="true">
           <label>Slice axis</label>
