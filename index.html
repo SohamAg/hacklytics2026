@@ -152,10 +152,24 @@
     .part-tag-name { font-size: 0.78rem; font-weight: 600; color: #fff; margin-bottom: 0.28rem; }
     .part-tag-desc { font-size: 0.7rem; line-height: 1.45; color: #a0a0a0; margin: 0; }
 
-    /* Annotation menu */
+    /* Annotation menu + Lens button row */
     .annotation-menu-wrap {
       position: absolute; top: 0.65rem; right: 0.65rem; z-index: 10;
       display: flex; flex-direction: column; align-items: flex-end;
+    }
+    .canvas-top-row { display: flex; gap: 0.4rem; align-items: center; }
+    .lens-btn {
+      font-family: inherit; font-size: 0.7rem; font-weight: 600;
+      color: #d8d6d3; background: rgba(28,28,34,0.9);
+      border: 1px solid rgba(59,130,246,0.3); border-radius: 6px;
+      padding: 0.38rem 0.65rem; cursor: crosshair; outline: none;
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .lens-btn:hover { border-color: rgba(59,130,246,0.6); background: rgba(59,130,246,0.1); color: #93c5fd; }
+    .lens-btn.active {
+      background: rgba(59,130,246,0.2); border-color: rgba(99,160,255,0.7);
+      color: #93c5fd; cursor: crosshair;
     }
     .annotation-menu-btn {
       font-family: inherit; font-size: 0.7rem; font-weight: 500;
@@ -497,10 +511,16 @@
       <div class="viz-wrapper">
         <!-- Annotation button overlay -->
         <div class="annotation-menu-wrap">
-          <button type="button" class="annotation-menu-btn" id="annotation-menu-btn" aria-expanded="false">
-            <span>Edit / Annotate</span>
-            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 4l4 4 4-4"/></svg>
-          </button>
+          <div class="canvas-top-row">
+            <button type="button" class="lens-btn" id="lens-btn" aria-pressed="false" title="Lens: drag to select & analyze cardiac structures with AI (Esc to exit)">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+              Lens
+            </button>
+            <button type="button" class="annotation-menu-btn" id="annotation-menu-btn" aria-expanded="false">
+              <span>Edit / Annotate</span>
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 4l4 4 4-4"/></svg>
+            </button>
+          </div><!-- /canvas-top-row -->
           <div class="annotation-panel" id="annotation-panel" role="menu">
             <div class="annotation-panel-header">Mark on heart</div>
             <div class="annotation-section">

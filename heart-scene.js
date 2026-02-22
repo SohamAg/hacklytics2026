@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+import { LensModule } from './lens-module.js';
 
 // ── Renderer setup ────────────────────────────────────────────────────────────
 const container = document.getElementById('canvas-container');
@@ -85,6 +86,7 @@ let penUpHandler = null;
 let conditionData = null;
 let pcaLandscape = null;
 let currentTab = 'simulate';
+let currentScanAnalysis = null; // most-recently displayed patient analysis JSON
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const BEAT_PERIOD = 0.9;
@@ -515,14 +517,14 @@ function pickPartFromMouse(event) {
 // ── Annotation: sticky notes ──────────────────────────────────────────────────
 function getVizWrapper() { return container?.parentElement; }
 
-function createStickyNote(clientX, clientY) {
+function createStickyNote(clientX, clientY, prefillText = '', colorKey = null) {
   const wrapper = getVizWrapper();
   if (!wrapper) return;
   const rect = wrapper.getBoundingClientRect();
   const id = nextStickyId++;
-  const colorKey = STICKY_COLORS[currentAnnotationTool] || 'yellow';
+  const ck = colorKey || STICKY_COLORS[currentAnnotationTool] || 'yellow';
   const el = document.createElement('div');
-  el.className = `sticky-note sticky-note-${colorKey}`;
+  el.className = `sticky-note sticky-note-${ck}`;
   el.dataset.stickyId = String(id);
   el.style.left = `${Math.max(0, clientX - rect.left)}px`;
   el.style.top = `${Math.max(0, clientY - rect.top)}px`;
@@ -534,12 +536,25 @@ function createStickyNote(clientX, clientY) {
   header.appendChild(del);
   const body = document.createElement('textarea');
   body.className = 'sticky-note-body'; body.placeholder = 'Note...'; body.setAttribute('rows', 3);
+  if (prefillText) { body.value = prefillText; body.setAttribute('rows', Math.min(10, prefillText.split('\n').length + 2)); }
   body.addEventListener('mousedown', e => e.stopPropagation());
   el.appendChild(header); el.appendChild(body);
   wrapper.appendChild(el);
-  stickyNotes.push({ id, el, colorKey });
+  stickyNotes.push({ id, el, colorKey: ck });
   setupStickyDrag(el, wrapper);
 }
+
+// Lens → sticky note bridge
+window.addEventListener('lens:save-note', e => {
+  const { text, clientX, clientY } = e.detail || {};
+  const wrapper = getVizWrapper();
+  if (!wrapper) return;
+  const rect = wrapper.getBoundingClientRect();
+  // Place near the popup; clamp inside the wrapper
+  const nx = Math.min(Math.max((clientX ?? window.innerWidth / 2) - rect.left, 10), rect.width  - 160);
+  const ny = Math.min(Math.max((clientY ?? window.innerHeight / 2) - rect.top,  10), rect.height - 80);
+  createStickyNote(nx + rect.left, ny + rect.top, text || '', 'blue');
+});
 
 function setupStickyDrag(stickyEl, wrapper) {
   const header = stickyEl.querySelector('.sticky-note-header');
@@ -816,6 +831,7 @@ function renderNearestPatients(nearest) {
 }
 
 function displayScanAnalysis(analysis) {
+  currentScanAnalysis = analysis;
   const resultsEl = document.getElementById('scan-results');
   if (resultsEl) resultsEl.classList.remove('hidden');
   const pidEl = document.getElementById('scan-patient-id');
@@ -1186,6 +1202,30 @@ loader.load(modelUrl, group => {
   camera.aspect = (w / 2) / h;
   if (cameraRight) { cameraRight.aspect = (w / 2) / h; cameraRight.updateProjectionMatrix(); }
   camera.updateProjectionMatrix();
+
+  // Initialize Lens module
+  const lens = new LensModule({
+    renderer,
+    camera,
+    getLeftMeshes:    () => pickableMeshes,
+    getRightMeshes:   () => pickableMeshesRight,
+    getCameraRight:   () => cameraRight,
+    // Volume data from pre-computed JSON (in mL) — the OBJ mesh units are not mm
+    getPatientFeatures:   () => currentScanAnalysis?.features   ?? null,
+    getReferenceFeatures: () => conditionData?.reference         ?? null,
+  });
+  lens.init();
+  const lensBtn = document.getElementById('lens-btn');
+  if (lensBtn) {
+    lensBtn.addEventListener('click', () => {
+      const on = lens.toggle();
+      lensBtn.classList.toggle('active', on);
+      lensBtn.setAttribute('aria-pressed', on);
+      lensBtn.title = on
+        ? 'Lens active — drag to select structures (Esc to exit)'
+        : 'Lens: drag to select & analyze cardiac structures with AI (Esc to exit)';
+    });
+  }
 
   // Populate condition selector
   const conditionSelect = document.getElementById('condition-select');
